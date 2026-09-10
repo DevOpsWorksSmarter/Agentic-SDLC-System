@@ -91,7 +91,7 @@ class TestDecompositionAgent:
         assert "schema_design" in code_task.depends_on
 
 
-# ── Orchestrator ─────────────────────────────────────────────────────────────
+# ── Orchestrator ───────────────────────────────────────────────────────────
 
 
 class TestOrchestrator:
@@ -178,7 +178,7 @@ class TestOrchestrator:
         assert schema.status == TaskStatus.SKIPPED
 
 
-# ── Artifacts ────────────────────────────────────────────────────────────────
+# ── Artifacts ──────────────────────────────────────────────────────────────
 
 
 class TestArtifacts:
@@ -246,7 +246,7 @@ class TestArtifacts:
             assert expected in files
 
 
-# ── Output Writer ─────────────────────────────────────────────────────────────
+# ── Output Writer ──────────────────────────────────────────────────────────
 
 
 class TestOutputWriter:
