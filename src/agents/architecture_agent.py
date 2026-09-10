@@ -3,6 +3,7 @@
 Produces a structured architecture design including components,
 data flows, API surface, and infrastructure topology.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 
@@ -102,7 +103,12 @@ class ArchitectureAgent(BaseAgent):
                 },
                 "aggregation": {
                     "role": "Pre-aggregated stats via DB views or scheduled rollup",
-                    "metrics": ["total_clicks", "unique_visitors", "clicks_by_day", "top_referrers"],
+                    "metrics": [
+                        "total_clicks",
+                        "unique_visitors",
+                        "clicks_by_day",
+                        "top_referrers",
+                    ],
                 },
             },
             "guarantees": "At-least-once delivery; idempotent event writes via event_id dedup",

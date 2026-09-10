@@ -3,6 +3,7 @@
 Generates the final engineering summary, README, and operational runbook
 from all accumulated workflow artifacts.
 """
+
 import html
 
 from src.agents.base import BaseAgent
@@ -92,20 +93,27 @@ pytest tests/ -v --tb=short
         risks = state.risks or []
         validation = state.validation
 
-        ambiguity_section = "\n".join(
-            f"- **{_s(a.question)}**\n  Resolution: {_s(a.resolution) or 'Unresolved'}"
-            for a in req.ambiguities
-        ) or "None detected."
+        ambiguity_section = (
+            "\n".join(
+                f"- **{_s(a.question)}**\n  Resolution: {_s(a.resolution) or 'Unresolved'}"
+                for a in req.ambiguities
+            )
+            or "None detected."
+        )
 
-        risk_section = "\n".join(
-            f"### {_s(r.title)} [{_s(r.level.value.upper())}]\n{_s(r.description)}\n\n"
-            f"**Mitigation:** {_s(r.mitigation)}\n\n**Trade-off:** {_s(r.tradeoff)}"
-            for r in risks
-        ) or "No risks identified."
+        risk_section = (
+            "\n".join(
+                f"### {_s(r.title)} [{_s(r.level.value.upper())}]\n{_s(r.description)}\n\n"
+                f"**Mitigation:** {_s(r.mitigation)}\n\n**Trade-off:** {_s(r.tradeoff)}"
+                for r in risks
+            )
+            or "No risks identified."
+        )
 
         task_section = "\n".join(
             f"| {_s(t.name)} | {_s(t.agent)} | {_s(t.status.value)} | {_s(', '.join(t.depends_on)) or '—'} |"
-            for t in state.tasks if t.name not in ("decompose", "documentation")
+            for t in state.tasks
+            if t.name not in ("decompose", "documentation")
         )
 
         checks_section = "\n".join(
@@ -133,10 +141,10 @@ pytest tests/ -v --tb=short
 **Intent:** {_s(req.intent)}
 
 **Constraints:**
-{chr(10).join(f'- {_s(c)}' for c in req.constraints)}
+{chr(10).join(f"- {_s(c)}" for c in req.constraints)}
 
 **Success Criteria:**
-{chr(10).join(f'- {_s(c)}' for c in req.success_criteria)}
+{chr(10).join(f"- {_s(c)}" for c in req.success_criteria)}
 
 ### Ambiguities Detected & Resolved
 {ambiguity_section}
@@ -165,16 +173,16 @@ pytest tests/ -v --tb=short
 
 ## 5. Validation
 
-**Overall:** {'[PASSED]' if (validation and validation.passed) else '[WARNINGS]'}
+**Overall:** {"[PASSED]" if (validation and validation.passed) else "[WARNINGS]"}
 
-**Coverage Estimate:** {_s(validation.coverage_estimate) if validation else 'N/A'}
+**Coverage Estimate:** {_s(validation.coverage_estimate) if validation else "N/A"}
 
 ### Static Checks
 {checks_section}
 
 ### Test Strategy
 ```
-{validation.test_strategy if validation else 'N/A'}
+{validation.test_strategy if validation else "N/A"}
 ```
 
 ---

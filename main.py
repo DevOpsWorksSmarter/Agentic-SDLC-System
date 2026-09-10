@@ -5,6 +5,7 @@ Usage:
     python main.py --serve                        # HTTP mode: /run + /metrics + /health
     python main.py --requirement "..." --auto     # CI/CD non-interactive mode
 """
+
 import argparse
 import json
 import logging
@@ -70,11 +71,24 @@ def start_http_server(port: int = 8080):
 def parse_args():
     parser = argparse.ArgumentParser(description="Agentic SDLC System")
     parser.add_argument("--requirement", "-r", type=str, help="Requirement string")
-    parser.add_argument("--auto", action="store_true", help="Auto-approve all human gates")
-    parser.add_argument("--codebase-path", type=str, default=".", help="Path to existing codebase (brownfield)")
-    parser.add_argument("--output-dir", type=str, default="outputs", help="Output directory")
-    parser.add_argument("--serve", action="store_true", help="Start HTTP server then run workflow")
-    parser.add_argument("--port", type=int, default=8080, help="HTTP server port (default: 8080)")
+    parser.add_argument(
+        "--auto", action="store_true", help="Auto-approve all human gates"
+    )
+    parser.add_argument(
+        "--codebase-path",
+        type=str,
+        default=".",
+        help="Path to existing codebase (brownfield)",
+    )
+    parser.add_argument(
+        "--output-dir", type=str, default="outputs", help="Output directory"
+    )
+    parser.add_argument(
+        "--serve", action="store_true", help="Start HTTP server then run workflow"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8080, help="HTTP server port (default: 8080)"
+    )
     return parser.parse_args()
 
 
@@ -100,14 +114,23 @@ def print_summary(state: WorkflowState, output_dir: str):
     print("=" * 60)
     print(f"\nScenario:    {state.requirement.scenario_type.value}")
     print(f"Intent:      {state.requirement.intent}")
-    print(f"\nAmbiguities: {len(state.requirement.ambiguities)} detected, "
-          f"{sum(1 for a in state.requirement.ambiguities if a.resolved)} resolved")
+    print(
+        f"\nAmbiguities: {len(state.requirement.ambiguities)} detected, "
+        f"{sum(1 for a in state.requirement.ambiguities if a.resolved)} resolved"
+    )
     print("\nTask Execution:")
     for t in state.tasks:
-        icon = {"completed": "[OK]", "approved": "[OK]", "failed": "[FAIL]",
-                "skipped": "[SKIP]", "rejected": "[REJ]"}.get(t.status.value, "[...]")
-        print(f"  {icon} {t.name:<30} [{t.status.value}]"
-              + (f"  <- {t.error}" if t.error else ""))
+        icon = {
+            "completed": "[OK]",
+            "approved": "[OK]",
+            "failed": "[FAIL]",
+            "skipped": "[SKIP]",
+            "rejected": "[REJ]",
+        }.get(t.status.value, "[...]")
+        print(
+            f"  {icon} {t.name:<30} [{t.status.value}]"
+            + (f"  <- {t.error}" if t.error else "")
+        )
     print(f"\nArtifacts Generated: {len(state.artifacts)}")
     for k in state.artifacts:
         print(f"  * {k}")
@@ -123,13 +146,20 @@ def print_summary(state: WorkflowState, output_dir: str):
     print("=" * 60 + "\n")
 
 
-def run_workflow(requirement_text: str, auto: bool, codebase_path: str, output_dir: str):
+def run_workflow(
+    requirement_text: str, auto: bool, codebase_path: str, output_dir: str
+):
     state = WorkflowState(requirement=Requirement(raw=requirement_text))
     if codebase_path and codebase_path != ".":
         state.artifacts["codebase_path"] = codebase_path
 
-    _emit("info", "Workflow started", workflow_id=state.id,
-          requirement=requirement_text[:120], auto_approve=auto)
+    _emit(
+        "info",
+        "Workflow started",
+        workflow_id=state.id,
+        requirement=requirement_text[:120],
+        auto_approve=auto,
+    )
 
     start = time.monotonic()
     try:
@@ -140,13 +170,16 @@ def run_workflow(requirement_text: str, auto: bool, codebase_path: str, output_d
         raise
 
     elapsed = time.monotonic() - start
-    _emit("info", "Workflow complete",
-          workflow_id=state.id,
-          scenario=state.requirement.scenario_type.value,
-          duration_seconds=round(elapsed, 2),
-          tasks_total=len(state.tasks),
-          tasks_failed=sum(1 for t in state.tasks if t.status.value == "failed"),
-          artifacts=len(state.artifacts))
+    _emit(
+        "info",
+        "Workflow complete",
+        workflow_id=state.id,
+        scenario=state.requirement.scenario_type.value,
+        duration_seconds=round(elapsed, 2),
+        tasks_total=len(state.tasks),
+        tasks_failed=sum(1 for t in state.tasks if t.status.value == "failed"),
+        artifacts=len(state.artifacts),
+    )
 
     output_path = write_outputs(state, base_dir=output_dir)
     return state, output_path

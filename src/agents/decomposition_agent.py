@@ -3,6 +3,7 @@
 Breaks a normalized requirement into structured, ordered tasks with
 explicit dependencies and assigned agents.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import ScenarioType, Task, TaskStatus, WorkflowState
 
@@ -20,7 +21,9 @@ class DecompositionAgent(BaseAgent):
             tasks = self._greenfield_tasks(req)
 
         # Inject into state
-        state.tasks = [t for t in state.tasks if t.name == "decompose"]  # keep orchestrator seed task
+        state.tasks = [
+            t for t in state.tasks if t.name == "decompose"
+        ]  # keep orchestrator seed task
         for td in tasks:
             t = Task(
                 name=td["name"],
@@ -33,7 +36,14 @@ class DecompositionAgent(BaseAgent):
             state.tasks.append(t)
 
         state.log(self.name, f"Decomposed into {len(tasks)} tasks")
-        return [{"name": t["name"], "agent": t["agent"], "depends_on": t.get("depends_on", [])} for t in tasks]
+        return [
+            {
+                "name": t["name"],
+                "agent": t["agent"],
+                "depends_on": t.get("depends_on", []),
+            }
+            for t in tasks
+        ]
 
     def _greenfield_tasks(self, req) -> list[dict]:
         tasks = [
@@ -80,12 +90,15 @@ class DecompositionAgent(BaseAgent):
 
         # Add analytics tasks if requirement mentions analytics
         if "analytic" in req.raw.lower():
-            tasks.insert(3, {
-                "name": "analytics_design",
-                "description": "Design async analytics pipeline: event capture, aggregation, query API",
-                "agent": "architecture_agent",
-                "depends_on": ["schema_design"],
-            })
+            tasks.insert(
+                3,
+                {
+                    "name": "analytics_design",
+                    "description": "Design async analytics pipeline: event capture, aggregation, query API",
+                    "agent": "architecture_agent",
+                    "depends_on": ["schema_design"],
+                },
+            )
             # Update code_generation dependency
             for t in tasks:
                 if t["name"] == "code_generation":

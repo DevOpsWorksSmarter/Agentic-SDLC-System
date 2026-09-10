@@ -3,6 +3,7 @@
 Interprets raw requirements, identifies ambiguities, normalizes into
 a structured engineering problem, and classifies scenario type.
 """
+
 import html
 import re
 
@@ -10,8 +11,17 @@ from src.agents.base import BaseAgent
 from src.models.state import Ambiguity, Requirement, ScenarioType, Task, WorkflowState
 
 _BROWNFIELD_SIGNALS = {
-    "refactor", "migrate", "fix", "bug", "enhance", "improve",
-    "update", "existing", "legacy", "optimize", "extend"
+    "refactor",
+    "migrate",
+    "fix",
+    "bug",
+    "enhance",
+    "improve",
+    "update",
+    "existing",
+    "legacy",
+    "optimize",
+    "extend",
 }
 
 _AMBIGUITY_SIGNALS = {
@@ -52,7 +62,9 @@ class RequirementAgent(BaseAgent):
     def _classify_scenario(self, text: str) -> ScenarioType:
         if any(kw in text for kw in _BROWNFIELD_SIGNALS):
             return ScenarioType.BROWNFIELD
-        if len(text.split()) < 8 or not any(c in text for c in ["api", "service", "system", "app"]):
+        if len(text.split()) < 8 or not any(
+            c in text for c in ["api", "service", "system", "app"]
+        ):
             return ScenarioType.AMBIGUOUS
         return ScenarioType.GREENFIELD
 
@@ -61,11 +73,13 @@ class RequirementAgent(BaseAgent):
         for keyword, question in _AMBIGUITY_SIGNALS.items():
             if keyword in text:
                 resolution = self._default_resolution(keyword)
-                found.append(Ambiguity(
-                    question=question,
-                    resolution=resolution,
-                    resolved=resolution is not None
-                ))
+                found.append(
+                    Ambiguity(
+                        question=question,
+                        resolution=resolution,
+                        resolved=resolution is not None,
+                    )
+                )
         return found
 
     def _default_resolution(self, keyword: str) -> str | None:
@@ -88,9 +102,15 @@ class RequirementAgent(BaseAgent):
         )
 
     def _extract_intent(self, raw: str) -> str:
-        verbs = re.findall(r'\b(build|create|implement|design|add|fix|refactor|migrate|extend)\b', raw.lower())
+        verbs = re.findall(
+            r"\b(build|create|implement|design|add|fix|refactor|migrate|extend)\b",
+            raw.lower(),
+        )
         primary_verb = verbs[0] if verbs else "implement"
-        nouns = re.findall(r'\b(service|api|system|feature|module|endpoint|database|cache)\b', raw.lower())
+        nouns = re.findall(
+            r"\b(service|api|system|feature|module|endpoint|database|cache)\b",
+            raw.lower(),
+        )
         primary_noun = nouns[0] if nouns else "solution"
         return f"Primary intent: {primary_verb} a {primary_noun} that satisfies the stated requirement."
 
@@ -99,7 +119,9 @@ class RequirementAgent(BaseAgent):
         if "scalab" in text:
             constraints.append("Horizontal scalability required")
         if "analytic" in text:
-            constraints.append("Analytics must not impact redirect latency (async write path)")
+            constraints.append(
+                "Analytics must not impact redirect latency (async write path)"
+            )
         if "persist" in text or "storage" in text or "database" in text:
             constraints.append("Durable persistence with crash recovery")
         return constraints
@@ -117,5 +139,7 @@ class RequirementAgent(BaseAgent):
                 "Invalid short codes return 404",
             ]
         if "analytic" in text:
-            criteria.append("Click events are recorded asynchronously without blocking redirect")
+            criteria.append(
+                "Click events are recorded asynchronously without blocking redirect"
+            )
         return criteria

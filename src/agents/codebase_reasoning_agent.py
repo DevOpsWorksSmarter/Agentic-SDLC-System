@@ -3,6 +3,7 @@
 Analyzes an existing codebase to identify impacted modules, APIs,
 data flows, and change surface for brownfield requirements.
 """
+
 import os
 
 from src.agents.base import BaseAgent
@@ -56,10 +57,15 @@ class CodebaseReasoningAgent(BaseAgent):
                 lines = fh.readlines()
             classes = [ln.strip() for ln in lines if ln.strip().startswith("class ")]
             functions = [
-                ln.strip() for ln in lines
+                ln.strip()
+                for ln in lines
                 if ln.strip().startswith("def ") or ln.strip().startswith("async def ")
             ]
-            return {"lines": len(lines), "classes": classes[:10], "functions": functions[:20]}
+            return {
+                "lines": len(lines),
+                "classes": classes[:10],
+                "functions": functions[:20],
+            }
         except Exception:
             return {"lines": 0, "classes": [], "functions": []}
 
@@ -69,16 +75,19 @@ class CodebaseReasoningAgent(BaseAgent):
         for filepath, summary in file_map.items():
             score = sum(1 for kw in keywords if kw in filepath.lower())
             score += sum(
-                1 for fn in summary.get("functions", [])
+                1
+                for fn in summary.get("functions", [])
                 if any(kw in fn.lower() for kw in keywords)
             )
             if score > 0:
-                impacted.append({
-                    "file": filepath,
-                    "relevance_score": score,
-                    "functions": summary.get("functions", []),
-                    "classes": summary.get("classes", []),
-                })
+                impacted.append(
+                    {
+                        "file": filepath,
+                        "relevance_score": score,
+                        "functions": summary.get("functions", []),
+                        "classes": summary.get("classes", []),
+                    }
+                )
         return sorted(impacted, key=lambda x: x["relevance_score"], reverse=True)[:10]
 
     def _estimate_change_surface(self, impacted: list) -> str:
@@ -93,7 +102,9 @@ class CodebaseReasoningAgent(BaseAgent):
 
     def _assess_breaking_risk(self, impacted: list) -> str:
         api_files = [m for m in impacted if "route" in m["file"] or "api" in m["file"]]
-        schema_files = [m for m in impacted if "model" in m["file"] or "schema" in m["file"]]
+        schema_files = [
+            m for m in impacted if "model" in m["file"] or "schema" in m["file"]
+        ]
         if api_files or schema_files:
             return "HIGH — API or schema changes detected; review for breaking changes"
         return "LOW — Internal implementation changes only"

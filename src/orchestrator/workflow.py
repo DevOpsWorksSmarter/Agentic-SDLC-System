@@ -6,6 +6,7 @@ Coordinates multi-agent execution with:
 - Error handling and retry logic
 - Cross-step state propagation
 """
+
 from src.agents.architecture_agent import ArchitectureAgent
 from src.agents.code_generation_agent import CodeGenerationAgent
 from src.agents.codebase_reasoning_agent import CodebaseReasoningAgent
@@ -31,7 +32,12 @@ AGENT_REGISTRY = {
 }
 
 _SEED_TASKS = ("understand_requirement", "decompose")
-_TERMINAL = {TaskStatus.COMPLETED, TaskStatus.APPROVED, TaskStatus.SKIPPED, TaskStatus.REJECTED}
+_TERMINAL = {
+    TaskStatus.COMPLETED,
+    TaskStatus.APPROVED,
+    TaskStatus.SKIPPED,
+    TaskStatus.REJECTED,
+}
 
 
 class WorkflowOrchestrator:
@@ -46,7 +52,9 @@ class WorkflowOrchestrator:
 
         # Phase 1: Requirement Understanding
         state.current_phase = "requirement_understanding"
-        self._run_task(Task(name="understand_requirement", agent="requirement_agent"), state)
+        self._run_task(
+            Task(name="understand_requirement", agent="requirement_agent"), state
+        )
 
         # Phase 2: Task Decomposition
         state.current_phase = "task_decomposition"
@@ -59,7 +67,10 @@ class WorkflowOrchestrator:
         state.current_phase = "complete"
         state.log("orchestrator", f"Workflow {state.id} complete")
         _timer.__exit__(None, None, None)
-        inc("sdlc_workflow_runs_total", {"status": "complete", "scenario": state.requirement.scenario_type.value})
+        inc(
+            "sdlc_workflow_runs_total",
+            {"status": "complete", "scenario": state.requirement.scenario_type.value},
+        )
         return state
 
     def _execute_plan(self, state: WorkflowState):
@@ -71,7 +82,11 @@ class WorkflowOrchestrator:
             if not ready:
                 pending = [t for t in plan if t.status == TaskStatus.PENDING]
                 if pending:
-                    state.log("orchestrator", f"Deadlock — skipping: {[t.name for t in pending]}", level="error")
+                    state.log(
+                        "orchestrator",
+                        f"Deadlock — skipping: {[t.name for t in pending]}",
+                        level="error",
+                    )
                     for t in pending:
                         t.status = TaskStatus.SKIPPED
                 break
@@ -83,7 +98,8 @@ class WorkflowOrchestrator:
 
     def _ready_tasks(self, tasks: list[Task], state: WorkflowState) -> list[Task]:
         return [
-            t for t in tasks
+            t
+            for t in tasks
             if t.status == TaskStatus.PENDING
             and all(
                 any(s.name == dep and s.status in _TERMINAL for s in state.tasks)
@@ -115,7 +131,10 @@ class WorkflowOrchestrator:
 
         if self.auto_approve:
             task.status = TaskStatus.APPROVED
-            inc("sdlc_approval_decisions_total", {"decision": "auto_approved", "task": task.name})
+            inc(
+                "sdlc_approval_decisions_total",
+                {"decision": "auto_approved", "task": task.name},
+            )
             state.log("orchestrator", f"Auto-approved: {task.name}")
             return
 
@@ -124,14 +143,17 @@ class WorkflowOrchestrator:
             task.status = TaskStatus.APPROVED if approved else TaskStatus.REJECTED
             if not approved:
                 task.error = "Rejected by reviewer"
-            state.log("orchestrator", f"Callback decision for {task.name}: {task.status.value}")
+            state.log(
+                "orchestrator",
+                f"Callback decision for {task.name}: {task.status.value}",
+            )
             return
 
         # Interactive CLI gate
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[APPROVAL GATE] Task: {task.name}  |  Agent: {task.agent}")
         print(f"Description: {task.description}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         choice = input("Approve? [y=yes / n=reject / s=skip]: ").strip().lower()
         if choice == "y":
             task.status = TaskStatus.APPROVED
@@ -140,12 +162,18 @@ class WorkflowOrchestrator:
         else:
             task.status = TaskStatus.REJECTED
             task.error = "Rejected by human reviewer"
-        state.log("orchestrator", f"Human decision for {task.name}: {task.status.value}")
+        state.log(
+            "orchestrator", f"Human decision for {task.name}: {task.status.value}"
+        )
 
     def _skip_dependents(self, failed: Task, tasks: list[Task], state: WorkflowState):
         for t in tasks:
             if failed.name in t.depends_on and t.status == TaskStatus.PENDING:
                 t.status = TaskStatus.SKIPPED
                 t.error = f"Dependency '{failed.name}' failed"
-                state.log("orchestrator", f"Skipped {t.name} — dependency failed", level="warn")
+                state.log(
+                    "orchestrator",
+                    f"Skipped {t.name} — dependency failed",
+                    level="warn",
+                )
                 self._skip_dependents(t, tasks, state)

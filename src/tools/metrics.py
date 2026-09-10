@@ -4,6 +4,7 @@ Exposes counters and histograms without requiring the prometheus_client
 library — uses a simple in-process registry that serialises to text format.
 If prometheus_client IS installed it is used automatically.
 """
+
 import time
 from collections import defaultdict
 
@@ -38,7 +39,7 @@ def metrics_text() -> str:
         if values:
             lines.append(f"{key}_count {len(values)}")
             lines.append(f"{key}_sum {sum(values)}")
-            lines.append(f"{key}_avg {sum(values)/len(values):.4f}")
+            lines.append(f"{key}_avg {sum(values) / len(values):.4f}")
     return "\n".join(lines) + "\n"
 
 

@@ -3,6 +3,7 @@
 Generates unit and integration tests for the URL shortener service,
 covering happy paths, edge cases, and error scenarios.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 
@@ -25,7 +26,7 @@ class TestGenerationAgent(BaseAgent):
         }
 
     def _conftest(self) -> str:
-        return '''\
+        return """\
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -54,10 +55,10 @@ async def client(db_session):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
-'''
+"""
 
     def _unit_shortener(self) -> str:
-        return '''\
+        return """\
 import pytest
 from app.shortener import generate_code, is_valid_code
 
@@ -93,10 +94,10 @@ def test_is_valid_code_rejects_too_short():
 
 def test_is_valid_code_rejects_too_long():
     assert is_valid_code("a" * 13) is False
-'''
+"""
 
     def _unit_service(self) -> str:
-        return '''\
+        return """\
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -168,10 +169,10 @@ async def test_deactivate_raises_404_for_unknown_code(mock_db):
         with pytest.raises(HTTPException) as exc:
             await svc.deactivate("notexist")
     assert exc.value.status_code == 404
-'''
+"""
 
     def _integration_api(self) -> str:
-        return '''\
+        return """\
 import pytest
 from unittest.mock import patch, AsyncMock
 
@@ -256,7 +257,7 @@ async def test_get_metadata(client):
 async def test_invalid_url_returns_422(client):
     resp = await client.post("/urls", json={"url": "not-a-valid-url"})
     assert resp.status_code == 422
-'''
+"""
 
     def _integration_analytics(self) -> str:
         return '''\

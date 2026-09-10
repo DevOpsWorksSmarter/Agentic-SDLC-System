@@ -1,4 +1,5 @@
 """Base agent with retry, error handling, and approval gate support."""
+
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
@@ -16,7 +17,11 @@ class BaseAgent(ABC):
         for attempt in range(task.max_retries + 1):
             try:
                 task.output = self.execute(task, state)
-                task.status = TaskStatus.AWAITING_APPROVAL if task.requires_approval else TaskStatus.COMPLETED
+                task.status = (
+                    TaskStatus.AWAITING_APPROVAL
+                    if task.requires_approval
+                    else TaskStatus.COMPLETED
+                )
                 task.completed_at = datetime.now(timezone.utc)
                 state.log(self.name, f"Completed task: {task.name}")
                 return task
@@ -26,7 +31,11 @@ class BaseAgent(ABC):
                 state.log(self.name, f"Attempt {attempt + 1} failed: {e}", level="warn")
                 if attempt == task.max_retries:
                     task.status = TaskStatus.FAILED
-                    state.log(self.name, f"Task failed after {task.max_retries + 1} attempts: {task.name}", level="error")
+                    state.log(
+                        self.name,
+                        f"Task failed after {task.max_retries + 1} attempts: {task.name}",
+                        level="error",
+                    )
         return task
 
     @abstractmethod

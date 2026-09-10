@@ -3,6 +3,7 @@
 Generates database schema (DDL) and OpenAPI 3.0 contract
 from the architecture design artifact.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 
@@ -82,7 +83,9 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                             "required": True,
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/CreateUrlRequest"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/CreateUrlRequest"
+                                    }
                                 }
                             },
                         },
@@ -91,12 +94,16 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                                 "description": "Short URL created",
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/UrlResponse"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/UrlResponse"
+                                        }
                                     }
                                 },
                             },
                             "400": {"description": "Invalid URL"},
-                            "409": {"description": "URL already exists (returns existing)"},
+                            "409": {
+                                "description": "URL already exists (returns existing)"
+                            },
                             "429": {"description": "Rate limit exceeded"},
                         },
                     }
@@ -106,7 +113,12 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                         "summary": "Redirect to original URL",
                         "operationId": "redirectUrl",
                         "parameters": [
-                            {"name": "code", "in": "path", "required": True, "schema": {"type": "string"}}
+                            {
+                                "name": "code",
+                                "in": "path",
+                                "required": True,
+                                "schema": {"type": "string"},
+                            }
                         ],
                         "responses": {
                             "302": {"description": "Redirect to original URL"},
@@ -120,13 +132,20 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                         "summary": "Get URL metadata",
                         "operationId": "getUrl",
                         "parameters": [
-                            {"name": "code", "in": "path", "required": True, "schema": {"type": "string"}}
+                            {
+                                "name": "code",
+                                "in": "path",
+                                "required": True,
+                                "schema": {"type": "string"},
+                            }
                         ],
                         "responses": {
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/UrlResponse"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/UrlResponse"
+                                        }
                                     }
                                 }
                             },
@@ -137,7 +156,12 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                         "summary": "Deactivate a short URL",
                         "operationId": "deleteUrl",
                         "parameters": [
-                            {"name": "code", "in": "path", "required": True, "schema": {"type": "string"}}
+                            {
+                                "name": "code",
+                                "in": "path",
+                                "required": True,
+                                "schema": {"type": "string"},
+                            }
                         ],
                         "responses": {
                             "204": {"description": "Deactivated"},
@@ -150,13 +174,20 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                         "summary": "Get click analytics for a short URL",
                         "operationId": "getStats",
                         "parameters": [
-                            {"name": "code", "in": "path", "required": True, "schema": {"type": "string"}}
+                            {
+                                "name": "code",
+                                "in": "path",
+                                "required": True,
+                                "schema": {"type": "string"},
+                            }
                         ],
                         "responses": {
                             "200": {
                                 "content": {
                                     "application/json": {
-                                        "schema": {"$ref": "#/components/schemas/StatsResponse"}
+                                        "schema": {
+                                            "$ref": "#/components/schemas/StatsResponse"
+                                        }
                                     }
                                 }
                             },
@@ -171,9 +202,21 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                         "type": "object",
                         "required": ["url"],
                         "properties": {
-                            "url": {"type": "string", "format": "uri", "maxLength": 2048},
-                            "custom_code": {"type": "string", "minLength": 4, "maxLength": 12},
-                            "expires_in_days": {"type": "integer", "minimum": 1, "maximum": 365},
+                            "url": {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 2048,
+                            },
+                            "custom_code": {
+                                "type": "string",
+                                "minLength": 4,
+                                "maxLength": 12,
+                            },
+                            "expires_in_days": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 365,
+                            },
                         },
                     },
                     "UrlResponse": {
@@ -184,7 +227,11 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                             "short_url": {"type": "string", "format": "uri"},
                             "original_url": {"type": "string", "format": "uri"},
                             "created_at": {"type": "string", "format": "date-time"},
-                            "expires_at": {"type": "string", "format": "date-time", "nullable": True},
+                            "expires_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": True,
+                            },
                             "is_active": {"type": "boolean"},
                         },
                     },
@@ -195,7 +242,11 @@ CREATE UNIQUE INDEX ON url_stats(code, click_day);
                             "total_clicks": {"type": "integer"},
                             "unique_visitors": {"type": "integer"},
                             "clicks_24h": {"type": "integer"},
-                            "last_clicked_at": {"type": "string", "format": "date-time", "nullable": True},
+                            "last_clicked_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": True,
+                            },
                             "clicks_by_day": {
                                 "type": "array",
                                 "items": {

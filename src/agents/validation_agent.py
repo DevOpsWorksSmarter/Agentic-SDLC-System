@@ -3,6 +3,7 @@
 Identifies risks, trade-offs, failure scenarios, and defines
 a comprehensive validation and test strategy.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import Risk, RiskLevel, Task, ValidationResult, WorkflowState
 
@@ -75,53 +76,67 @@ class ValidationAgent(BaseAgent):
         checks = []
 
         # Check architecture artifact exists
-        checks.append({
-            "name": "architecture_artifact_present",
-            "passed": "architecture_design" in artifacts,
-            "blocking": True,
-            "detail": "Architecture design must be completed before code generation",
-        })
+        checks.append(
+            {
+                "name": "architecture_artifact_present",
+                "passed": "architecture_design" in artifacts,
+                "blocking": True,
+                "detail": "Architecture design must be completed before code generation",
+            }
+        )
 
         # Check schema artifact exists
-        checks.append({
-            "name": "schema_artifact_present",
-            "passed": "schema_design" in artifacts,
-            "blocking": True,
-            "detail": "Schema (DB + OpenAPI) must be defined",
-        })
+        checks.append(
+            {
+                "name": "schema_artifact_present",
+                "passed": "schema_design" in artifacts,
+                "blocking": True,
+                "detail": "Schema (DB + OpenAPI) must be defined",
+            }
+        )
 
         # Check code artifact exists
-        checks.append({
-            "name": "code_artifact_present",
-            "passed": "code_generation" in artifacts,
-            "blocking": True,
-            "detail": "Generated code must be present for test validation",
-        })
+        checks.append(
+            {
+                "name": "code_artifact_present",
+                "passed": "code_generation" in artifacts,
+                "blocking": True,
+                "detail": "Generated code must be present for test validation",
+            }
+        )
 
         # Check test artifact exists
-        checks.append({
-            "name": "test_artifact_present",
-            "passed": "test_generation" in artifacts,
-            "blocking": True,
-            "detail": "Tests must be generated before validation completes",
-        })
+        checks.append(
+            {
+                "name": "test_artifact_present",
+                "passed": "test_generation" in artifacts,
+                "blocking": True,
+                "detail": "Tests must be generated before validation completes",
+            }
+        )
 
         # Check ambiguities resolved
         unresolved = [a for a in state.requirement.ambiguities if not a.resolved]
-        checks.append({
-            "name": "ambiguities_resolved",
-            "passed": len(unresolved) == 0,
-            "blocking": False,
-            "detail": f"{len(unresolved)} unresolved ambiguities" if unresolved else "All ambiguities resolved",
-        })
+        checks.append(
+            {
+                "name": "ambiguities_resolved",
+                "passed": len(unresolved) == 0,
+                "blocking": False,
+                "detail": f"{len(unresolved)} unresolved ambiguities"
+                if unresolved
+                else "All ambiguities resolved",
+            }
+        )
 
         # Check success criteria defined
-        checks.append({
-            "name": "success_criteria_defined",
-            "passed": len(state.requirement.success_criteria) > 0,
-            "blocking": False,
-            "detail": f"{len(state.requirement.success_criteria)} success criteria defined",
-        })
+        checks.append(
+            {
+                "name": "success_criteria_defined",
+                "passed": len(state.requirement.success_criteria) > 0,
+                "blocking": False,
+                "detail": f"{len(state.requirement.success_criteria)} success criteria defined",
+            }
+        )
 
         return checks
 

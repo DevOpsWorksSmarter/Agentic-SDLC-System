@@ -3,6 +3,7 @@
 Generates production-quality FastAPI service code for the URL shortener,
 including models, repository, service layer, API routes, and config.
 """
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 
@@ -30,7 +31,7 @@ class CodeGenerationAgent(BaseAgent):
         }
 
     def _config(self) -> str:
-        return '''\
+        return """\
 from pydantic_settings import BaseSettings
 
 
@@ -47,10 +48,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-'''
+"""
 
     def _models(self) -> str:
-        return '''\
+        return """\
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -87,10 +88,10 @@ class StatsResponse(BaseModel):
     clicks_24h: int
     last_clicked_at: Optional[datetime]
     clicks_by_day: list[dict]
-'''
+"""
 
     def _database(self) -> str:
-        return '''\
+        return """\
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Boolean, Text, DateTime, ForeignKey
@@ -133,10 +134,10 @@ class ClickEvent(Base):
 async def get_db():
     async with SessionLocal() as session:
         yield session
-'''
+"""
 
     def _cache(self) -> str:
-        return '''\
+        return """\
 from redis.asyncio import Redis
 from app.config import settings
 
@@ -163,7 +164,7 @@ async def cache_set(key: str, value: str, ttl: int = None) -> None:
 async def cache_delete(key: str) -> None:
     r = await get_redis()
     await r.delete(key)
-'''
+"""
 
     def _shortener(self) -> str:
         return '''\
@@ -191,7 +192,7 @@ def is_valid_code(code: str) -> bool:
 '''
 
     def _repository(self) -> str:
-        return '''\
+        return """\
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.database import UrlRecord, ClickEvent
@@ -258,10 +259,10 @@ class UrlRepository:
             "last_clicked_at": last,
             "clicks_by_day": [],
         }
-'''
+"""
 
     def _service(self) -> str:
-        return '''\
+        return """\
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -346,7 +347,7 @@ class UrlService:
             expires_at=record.expires_at,
             is_active=record.is_active,
         )
-'''
+"""
 
     def _analytics(self) -> str:
         return '''\
@@ -379,7 +380,7 @@ async def record_click_async(
 '''
 
     def _routes(self) -> str:
-        return '''\
+        return """\
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -429,10 +430,10 @@ async def delete_url(code: str, db: AsyncSession = Depends(get_db)):
 @router.get("/urls/{code}/stats", response_model=StatsResponse)
 async def get_stats(code: str, db: AsyncSession = Depends(get_db)):
     return await UrlService(db).get_stats(code)
-'''
+"""
 
     def _main(self) -> str:
-        return '''\
+        return """\
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import router
@@ -456,10 +457,10 @@ app.include_router(router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-'''
+"""
 
     def _docker_compose(self) -> str:
-        return '''\
+        return """\
 version: "3.9"
 services:
   api:
@@ -498,20 +499,20 @@ services:
 
 volumes:
   pgdata:
-'''
+"""
 
     def _dockerfile(self) -> str:
-        return '''\
+        return """\
 FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-'''
+"""
 
     def _requirements(self) -> str:
-        return '''\
+        return """\
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 sqlalchemy[asyncio]==2.0.30
@@ -520,4 +521,4 @@ redis[asyncio]==5.0.4
 pydantic==2.7.1
 pydantic-settings==2.2.1
 alembic==1.13.1
-'''
+"""

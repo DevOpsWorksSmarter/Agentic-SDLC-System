@@ -1,4 +1,5 @@
 """Core state models for the Agentic SDLC System."""
+
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -86,6 +87,7 @@ class ValidationResult:
 @dataclass
 class WorkflowState:
     """Central state object passed through the entire workflow."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     requirement: Requirement | None = None
     tasks: list[Task] = field(default_factory=list)
@@ -103,9 +105,11 @@ class WorkflowState:
         return next((t for t in self.tasks if t.name == name), None)
 
     def log(self, phase: str, message: str, level: str = "info"):
-        self.execution_log.append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "phase": phase,
-            "level": level,
-            "message": message
-        })
+        self.execution_log.append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "phase": phase,
+                "level": level,
+                "message": message,
+            }
+        )

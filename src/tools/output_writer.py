@@ -3,6 +3,7 @@
 Persists all generated artifacts from the workflow state
 to the outputs directory in a structured layout.
 """
+
 import json
 import os
 import re
@@ -46,7 +47,11 @@ def write_outputs(state: WorkflowState, base_dir: str = "outputs") -> str:
         if isinstance(artifact_data, dict) and "files" in artifact_data:
             for filepath, content in artifact_data["files"].items():
                 # Sanitize each path component individually
-                safe_parts = [_safe_segment(p) for p in filepath.replace("\\", "/").split("/") if p]
+                safe_parts = [
+                    _safe_segment(p)
+                    for p in filepath.replace("\\", "/").split("/")
+                    if p
+                ]
                 if not safe_parts:
                     continue
                 full_path = _safe_join(artifact_dir, *safe_parts)
@@ -89,7 +94,9 @@ def write_outputs(state: WorkflowState, base_dir: str = "outputs") -> str:
         ],
         "validation": {
             "passed": state.validation.passed if state.validation else None,
-            "coverage_estimate": state.validation.coverage_estimate if state.validation else None,
+            "coverage_estimate": state.validation.coverage_estimate
+            if state.validation
+            else None,
             "checks": state.validation.checks if state.validation else [],
         },
         "artifacts_generated": list(state.artifacts.keys()),
