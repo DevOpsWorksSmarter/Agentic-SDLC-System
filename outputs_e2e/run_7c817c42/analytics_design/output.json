@@ -1,0 +1,24 @@
+{
+  "pattern": "Async event-driven analytics pipeline",
+  "components": {
+    "event_publisher": {
+      "role": "Publishes click events on each redirect (fire-and-forget)",
+      "implementation": "asyncio background task or Redis pub/sub"
+    },
+    "event_consumer": {
+      "role": "Consumes events and persists to click_events table",
+      "implementation": "Celery worker or asyncio consumer loop"
+    },
+    "aggregation": {
+      "role": "Pre-aggregated stats via DB views or scheduled rollup",
+      "metrics": [
+        "total_clicks",
+        "unique_visitors",
+        "clicks_by_day",
+        "top_referrers"
+      ]
+    }
+  },
+  "guarantees": "At-least-once delivery; idempotent event writes via event_id dedup",
+  "isolation": "Analytics failures do not affect redirect availability"
+}

@@ -1,0 +1,117 @@
+{
+  "title": "Agentic SDLC — Workflow Overview",
+  "uid": "agentic-sdlc-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Workflow Runs (Total)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(sdlc_workflow_runs_total)",
+          "legendFormat": "Total Runs"
+        }
+      ],
+      "options": { "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "id": 2,
+      "title": "Workflow Success Rate",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(sdlc_workflow_runs_total{status='complete'}) / sum(sdlc_workflow_runs_total) * 100",
+          "legendFormat": "Success %"
+        }
+      ],
+      "options": { "colorMode": "background", "unit": "percent" }
+    },
+    {
+      "id": 3,
+      "title": "Avg Workflow Duration (seconds)",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "avg(sdlc_workflow_duration_seconds)",
+          "legendFormat": "Avg Duration"
+        }
+      ],
+      "options": { "colorMode": "background", "unit": "s" }
+    },
+    {
+      "id": 4,
+      "title": "Tasks Executed by Agent",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (agent) (sdlc_task_executions_total)",
+          "legendFormat": "{{ agent }}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Task Failure Rate by Agent",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (agent) (rate(sdlc_task_executions_total{status='failed'}[5m]))",
+          "legendFormat": "{{ agent }}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Scenario Distribution",
+      "type": "piechart",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 6 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (scenario) (sdlc_workflow_runs_total)",
+          "legendFormat": "{{ scenario }}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Approval Gate Decisions",
+      "type": "bargauge",
+      "gridPos": { "x": 12, "y": 6, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (decision) (sdlc_approval_decisions_total)",
+          "legendFormat": "{{ decision }}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Execution Logs",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Loki",
+          "expr": "{service=\"agentic-sdlc\"}",
+          "legendFormat": ""
+        }
+      ]
+    }
+  ]
+}

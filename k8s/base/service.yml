@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentic-sdlc
+  namespace: agentic-sdlc
+  labels:
+    app: agentic-sdlc
+spec:
+  selector:
+    app: agentic-sdlc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agentic-sdlc-outputs
+  namespace: agentic-sdlc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agentic-sdlc
+  namespace: agentic-sdlc
+  labels:
+    app: agentic-sdlc
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agentic-sdlc
+  namespace: agentic-sdlc
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agentic-sdlc
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentic-sdlc-config
+  namespace: agentic-sdlc
+data:
+  LOG_LEVEL: INFO
+  OUTPUT_DIR: /app/outputs
+  PYTHONUNBUFFERED: "1"

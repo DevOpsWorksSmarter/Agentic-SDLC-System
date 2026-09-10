@@ -1,0 +1,255 @@
+{
+  "database_schema": "-- URL Shortener Database Schema\n\nCREATE EXTENSION IF NOT EXISTS \"pgcrypto\";\n\nCREATE TABLE urls (\n    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    code        VARCHAR(12) NOT NULL UNIQUE,\n    original    TEXT NOT NULL,\n    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    expires_at  TIMESTAMPTZ,\n    is_active   BOOLEAN NOT NULL DEFAULT TRUE,\n    created_by  VARCHAR(255),\n    CONSTRAINT  chk_original_length CHECK (char_length(original) <= 2048)\n);\n\nCREATE INDEX idx_urls_code ON urls(code);\nCREATE INDEX idx_urls_original ON urls(original);\n\nCREATE TABLE click_events (\n    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    url_id      UUID NOT NULL REFERENCES urls(id) ON DELETE CASCADE,\n    clicked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    ip_hash     VARCHAR(64),\n    referrer    TEXT,\n    user_agent  TEXT,\n    country     VARCHAR(2)\n);\n\nCREATE INDEX idx_clicks_url_id ON click_events(url_id);\nCREATE INDEX idx_clicks_clicked_at ON click_events(clicked_at);\n\n-- Pre-aggregated stats view\nCREATE MATERIALIZED VIEW url_stats AS\nSELECT\n    u.code,\n    COUNT(c.id)                          AS total_clicks,\n    COUNT(DISTINCT c.ip_hash)            AS unique_visitors,\n    MAX(c.clicked_at)                    AS last_clicked_at,\n    DATE_TRUNC('day', c.clicked_at)      AS click_day,\n    COUNT(*) FILTER (WHERE c.clicked_at >= NOW() - INTERVAL '24 hours') AS clicks_24h\nFROM urls u\nLEFT JOIN click_events c ON c.url_id = u.id\nGROUP BY u.code, DATE_TRUNC('day', c.clicked_at);\n\nCREATE UNIQUE INDEX ON url_stats(code, click_day);\n",
+  "openapi_spec": {
+    "openapi": "3.0.3",
+    "info": {
+      "title": "URL Shortener API",
+      "version": "1.0.0",
+      "description": "Scalable URL shortener with analytics"
+    },
+    "paths": {
+      "/urls": {
+        "post": {
+          "summary": "Create a short URL",
+          "operationId": "createUrl",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUrlRequest"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Short URL created",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UrlResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid URL"
+            },
+            "409": {
+              "description": "URL already exists (returns existing)"
+            },
+            "429": {
+              "description": "Rate limit exceeded"
+            }
+          }
+        }
+      },
+      "/{code}": {
+        "get": {
+          "summary": "Redirect to original URL",
+          "operationId": "redirectUrl",
+          "parameters": [
+            {
+              "name": "code",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "302": {
+              "description": "Redirect to original URL"
+            },
+            "404": {
+              "description": "Short code not found"
+            },
+            "410": {
+              "description": "URL has been deactivated"
+            }
+          }
+        }
+      },
+      "/urls/{code}": {
+        "get": {
+          "summary": "Get URL metadata",
+          "operationId": "getUrl",
+          "parameters": [
+            {
+              "name": "code",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UrlResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Not found"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Deactivate a short URL",
+          "operationId": "deleteUrl",
+          "parameters": [
+            {
+              "name": "code",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Deactivated"
+            },
+            "404": {
+              "description": "Not found"
+            }
+          }
+        }
+      },
+      "/urls/{code}/stats": {
+        "get": {
+          "summary": "Get click analytics for a short URL",
+          "operationId": "getStats",
+          "parameters": [
+            {
+              "name": "code",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/StatsResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Not found"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "CreateUrlRequest": {
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 2048
+            },
+            "custom_code": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 12
+            },
+            "expires_in_days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          }
+        },
+        "UrlResponse": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "code": {
+              "type": "string"
+            },
+            "short_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "original_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "is_active": {
+              "type": "boolean"
+            }
+          }
+        },
+        "StatsResponse": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "total_clicks": {
+              "type": "integer"
+            },
+            "unique_visitors": {
+              "type": "integer"
+            },
+            "clicks_24h": {
+              "type": "integer"
+            },
+            "last_clicked_at": {
+              "type": "string",
+              "format": "date-time",
+              "nullable": true
+            },
+            "clicks_by_day": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

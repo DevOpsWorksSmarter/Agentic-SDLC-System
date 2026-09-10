@@ -1,0 +1,164 @@
+[
+  {
+    "timestamp": "2026-09-10T15:32:10.947098+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Starting workflow 7c817c42"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.947235+00:00",
+    "phase": "requirement_agent",
+    "level": "info",
+    "message": "Starting task: understand_requirement"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948038+00:00",
+    "phase": "requirement_agent",
+    "level": "info",
+    "message": "Completed task: understand_requirement"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948102+00:00",
+    "phase": "decomposition_agent",
+    "level": "info",
+    "message": "Starting task: decompose"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948193+00:00",
+    "phase": "decomposition_agent",
+    "level": "info",
+    "message": "Decomposed into 7 tasks"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948205+00:00",
+    "phase": "decomposition_agent",
+    "level": "info",
+    "message": "Completed task: decompose"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948258+00:00",
+    "phase": "architecture_agent",
+    "level": "info",
+    "message": "Starting task: architecture_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948271+00:00",
+    "phase": "architecture_agent",
+    "level": "info",
+    "message": "Completed task: architecture_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948281+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Awaiting approval: architecture_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948288+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Auto-approved: architecture_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948320+00:00",
+    "phase": "schema_agent",
+    "level": "info",
+    "message": "Starting task: schema_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948358+00:00",
+    "phase": "schema_agent",
+    "level": "info",
+    "message": "Completed task: schema_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948388+00:00",
+    "phase": "architecture_agent",
+    "level": "info",
+    "message": "Starting task: analytics_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948395+00:00",
+    "phase": "architecture_agent",
+    "level": "info",
+    "message": "Completed task: analytics_design"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948422+00:00",
+    "phase": "code_generation_agent",
+    "level": "info",
+    "message": "Starting task: code_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948435+00:00",
+    "phase": "code_generation_agent",
+    "level": "info",
+    "message": "Completed task: code_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948443+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Awaiting approval: code_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948450+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Auto-approved: code_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948467+00:00",
+    "phase": "test_generation_agent",
+    "level": "info",
+    "message": "Starting task: test_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948474+00:00",
+    "phase": "test_generation_agent",
+    "level": "info",
+    "message": "Completed task: test_generation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948491+00:00",
+    "phase": "validation_agent",
+    "level": "info",
+    "message": "Starting task: validation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948556+00:00",
+    "phase": "validation_agent",
+    "level": "info",
+    "message": "Completed task: validation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948564+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Awaiting approval: validation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948570+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Auto-approved: validation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948584+00:00",
+    "phase": "documentation_agent",
+    "level": "info",
+    "message": "Starting task: documentation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948756+00:00",
+    "phase": "documentation_agent",
+    "level": "info",
+    "message": "Completed task: documentation"
+  },
+  {
+    "timestamp": "2026-09-10T15:32:10.948774+00:00",
+    "phase": "orchestrator",
+    "level": "info",
+    "message": "Workflow 7c817c42 complete"
+  }
+]

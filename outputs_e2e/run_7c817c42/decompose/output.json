@@ -1,0 +1,50 @@
+[
+  {
+    "name": "architecture_design",
+    "agent": "architecture_agent",
+    "depends_on": []
+  },
+  {
+    "name": "schema_design",
+    "agent": "schema_agent",
+    "depends_on": [
+      "architecture_design"
+    ]
+  },
+  {
+    "name": "code_generation",
+    "agent": "code_generation_agent",
+    "depends_on": [
+      "schema_design",
+      "analytics_design"
+    ]
+  },
+  {
+    "name": "analytics_design",
+    "agent": "architecture_agent",
+    "depends_on": [
+      "schema_design"
+    ]
+  },
+  {
+    "name": "test_generation",
+    "agent": "test_generation_agent",
+    "depends_on": [
+      "code_generation"
+    ]
+  },
+  {
+    "name": "validation",
+    "agent": "validation_agent",
+    "depends_on": [
+      "test_generation"
+    ]
+  },
+  {
+    "name": "documentation",
+    "agent": "documentation_agent",
+    "depends_on": [
+      "validation"
+    ]
+  }
+]

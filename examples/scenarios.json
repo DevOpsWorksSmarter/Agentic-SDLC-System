@@ -1,0 +1,144 @@
+{
+  "scenarios": [
+    {
+      "id": "greenfield_url_shortener",
+      "type": "greenfield",
+      "description": "Mandatory use case — full system from scratch",
+      "requirement": "Build a scalable URL shortener service with APIs, persistence, and analytics.",
+      "cli_command": "python main.py --auto --requirement \"Build a scalable URL shortener service with APIs, persistence, and analytics.\"",
+      "expected_tasks": [
+        "architecture_design",
+        "schema_design",
+        "analytics_design",
+        "code_generation",
+        "test_generation",
+        "validation",
+        "documentation"
+      ],
+      "expected_artifacts": [
+        "understand_requirement",
+        "decompose",
+        "architecture_design",
+        "schema_design",
+        "analytics_design",
+        "code_generation",
+        "test_generation",
+        "validation",
+        "documentation"
+      ],
+      "sample_output": {
+        "scenario": "greenfield",
+        "ambiguities_detected": 3,
+        "ambiguities_resolved": 3,
+        "tasks_executed": 9,
+        "tasks_approved": 3,
+        "risks_identified": 6,
+        "validation_passed": true,
+        "coverage_estimate": "~85% (unit) + ~70% (integration)",
+        "artifacts_generated": [
+          "understand_requirement",
+          "decompose",
+          "architecture_design",
+          "schema_design",
+          "analytics_design",
+          "code_generation",
+          "test_generation",
+          "validation",
+          "documentation"
+        ],
+        "generated_files": [
+          "app/main.py",
+          "app/routes.py",
+          "app/service.py",
+          "app/repository.py",
+          "app/models.py",
+          "app/database.py",
+          "app/cache.py",
+          "app/shortener.py",
+          "app/analytics.py",
+          "app/config.py",
+          "Dockerfile",
+          "docker-compose.yml",
+          "requirements.txt",
+          "tests/conftest.py",
+          "tests/unit/test_shortener.py",
+          "tests/unit/test_service.py",
+          "tests/integration/test_api.py",
+          "tests/integration/test_analytics.py",
+          "README.md",
+          "ENGINEERING_SUMMARY.md",
+          "RUNBOOK.md"
+        ],
+        "key_decisions": [
+          "Cache-aside pattern: Redis hot-path, PostgreSQL durable store",
+          "Base62 7-char codes: ~3.5B namespace, SHA256+timestamp salt",
+          "Async analytics: fire-and-forget, never blocks redirect",
+          "Idempotency: duplicate URLs return same short code"
+        ]
+      }
+    },
+    {
+      "id": "brownfield_add_expiry",
+      "type": "brownfield",
+      "description": "Add URL expiry feature to existing URL shortener",
+      "requirement": "Enhance the existing URL shortener to support configurable link expiration. URLs should automatically deactivate after a user-defined TTL.",
+      "cli_command": "python main.py --auto --requirement \"Enhance the existing URL shortener to support configurable link expiration. URLs should automatically deactivate after a user-defined TTL.\" --codebase-path ./outputs",
+      "expected_tasks": [
+        "codebase_analysis",
+        "impact_assessment",
+        "code_generation",
+        "test_generation",
+        "validation",
+        "documentation"
+      ],
+      "sample_output": {
+        "scenario": "brownfield",
+        "codebase_analysis": {
+          "scanned_files": 12,
+          "impacted_modules": [
+            {"file": "app/models.py", "relevance_score": 3, "reason": "expires_at field addition"},
+            {"file": "app/service.py", "relevance_score": 2, "reason": "expiry check in resolve()"},
+            {"file": "app/repository.py", "relevance_score": 2, "reason": "expires_at in create()"}
+          ],
+          "change_surface": "small (1-3 files)",
+          "breaking_change_risk": "LOW — Internal implementation changes only",
+          "migration_needed": false
+        },
+        "tasks_executed": 6,
+        "risks_identified": 6,
+        "validation_passed": true,
+        "key_changes": [
+          "Added expires_in_days to CreateUrlRequest model",
+          "Added expires_at column to urls table",
+          "Expiry check in UrlService.resolve() returns 410 Gone",
+          "Alembic migration script for expires_at column"
+        ]
+      }
+    },
+    {
+      "id": "ambiguous_make_it_fast",
+      "type": "ambiguous",
+      "description": "Vague performance requirement — system must detect and resolve ambiguities",
+      "requirement": "Make the service fast and scalable.",
+      "cli_command": "python main.py --auto --requirement \"Make the service fast and scalable.\"",
+      "expected_behavior": {
+        "scenario_classification": "ambiguous",
+        "ambiguities_detected": ["scalable", "fast"],
+        "auto_resolved": true,
+        "resolutions": {
+          "scalable": "Target: 10k RPS, horizontal scaling via stateless services + Redis cache",
+          "fast": "p99 redirect latency < 50ms via cache-first lookup"
+        }
+      },
+      "sample_output": {
+        "scenario": "ambiguous",
+        "ambiguities_detected": 2,
+        "ambiguities_resolved": 2,
+        "normalized_requirement": "[AMBIGUOUS] Make the service fast and scalable. — Normalized: Design and implement a production-ready system addressing the stated requirement with clear API contracts, persistence layer, test coverage, and operational documentation.",
+        "tasks_executed": 9,
+        "validation_passed": true,
+        "note": "Ambiguous requirements are treated as greenfield after auto-resolution. All ambiguities are resolved with sensible defaults before task decomposition proceeds."
+      }
+    }
+  ]
+}

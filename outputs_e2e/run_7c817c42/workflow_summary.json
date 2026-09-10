@@ -1,0 +1,167 @@
+{
+  "workflow_id": "7c817c42",
+  "scenario": "greenfield",
+  "requirement": "Build a scalable URL shortener service with APIs, persistence, and analytics.",
+  "tasks": [
+    {
+      "name": "architecture_design",
+      "agent": "architecture_agent",
+      "status": "approved",
+      "depends_on": [],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "schema_design",
+      "agent": "schema_agent",
+      "status": "completed",
+      "depends_on": [
+        "architecture_design"
+      ],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "code_generation",
+      "agent": "code_generation_agent",
+      "status": "approved",
+      "depends_on": [
+        "schema_design",
+        "analytics_design"
+      ],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "analytics_design",
+      "agent": "architecture_agent",
+      "status": "completed",
+      "depends_on": [
+        "schema_design"
+      ],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "test_generation",
+      "agent": "test_generation_agent",
+      "status": "completed",
+      "depends_on": [
+        "code_generation"
+      ],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "validation",
+      "agent": "validation_agent",
+      "status": "approved",
+      "depends_on": [
+        "test_generation"
+      ],
+      "error": null,
+      "retry_count": 0
+    },
+    {
+      "name": "documentation",
+      "agent": "documentation_agent",
+      "status": "completed",
+      "depends_on": [
+        "validation"
+      ],
+      "error": null,
+      "retry_count": 0
+    }
+  ],
+  "risks": [
+    {
+      "title": "Code collision under high concurrency",
+      "level": "medium",
+      "mitigation": "Add DB unique constraint on (original, is_active=true) or use SELECT FOR UPDATE / advisory lock.",
+      "tradeoff": "Locking reduces throughput; constraint adds index overhead."
+    },
+    {
+      "title": "Cache stampede on cold start",
+      "level": "medium",
+      "mitigation": "Implement probabilistic early expiration or request coalescing (single-flight pattern).",
+      "tradeoff": "Adds complexity; acceptable for MVP with low cold-start frequency."
+    },
+    {
+      "title": "Analytics data loss on worker crash",
+      "level": "low",
+      "mitigation": "Use a durable queue (Redis Streams / SQS) with at-least-once delivery for production.",
+      "tradeoff": "Adds operational complexity; asyncio tasks are sufficient for MVP."
+    },
+    {
+      "title": "Open redirect abuse",
+      "level": "high",
+      "mitigation": "Integrate URL reputation check (Google Safe Browsing API) before persisting. Add rate limiting per IP.",
+      "tradeoff": "External API call adds ~50ms latency to shorten path; acceptable trade-off."
+    },
+    {
+      "title": "Short code exhaustion",
+      "level": "low",
+      "mitigation": "Monitor code space utilization; increase length to 8 chars if needed.",
+      "tradeoff": "Longer codes reduce URL aesthetics."
+    },
+    {
+      "title": "PostgreSQL single point of failure",
+      "level": "high",
+      "mitigation": "AWS RDS Multi-AZ with automatic failover. Read replicas for analytics queries.",
+      "tradeoff": "Multi-AZ doubles DB cost; justified for production."
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "coverage_estimate": "~85% (unit) + ~70% (integration)",
+    "checks": [
+      {
+        "name": "architecture_artifact_present",
+        "passed": true,
+        "blocking": true,
+        "detail": "Architecture design must be completed before code generation"
+      },
+      {
+        "name": "schema_artifact_present",
+        "passed": true,
+        "blocking": true,
+        "detail": "Schema (DB + OpenAPI) must be defined"
+      },
+      {
+        "name": "code_artifact_present",
+        "passed": true,
+        "blocking": true,
+        "detail": "Generated code must be present for test validation"
+      },
+      {
+        "name": "test_artifact_present",
+        "passed": true,
+        "blocking": true,
+        "detail": "Tests must be generated before validation completes"
+      },
+      {
+        "name": "ambiguities_resolved",
+        "passed": true,
+        "blocking": false,
+        "detail": "All ambiguities resolved"
+      },
+      {
+        "name": "success_criteria_defined",
+        "passed": true,
+        "blocking": false,
+        "detail": "7 success criteria defined"
+      }
+    ]
+  },
+  "artifacts_generated": [
+    "understand_requirement",
+    "decompose",
+    "architecture_design",
+    "schema_design",
+    "analytics_design",
+    "code_generation",
+    "test_generation",
+    "validation",
+    "documentation"
+  ]
+}

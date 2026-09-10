@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentic-sdlc
+  namespace: agentic-sdlc
+  labels:
+    app: agentic-sdlc
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: agentic-sdlc
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0          # Zero-downtime rolling deploy
+  template:
+    metadata:
+      labels:
+        app: agentic-sdlc
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: agentic-sdlc
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: agentic-sdlc
+          image: ghcr.io/your-org/agentic-sdlc/agentic-sdlc:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: LOG_LEVEL
+              value: INFO
+            - name: OUTPUT_DIR
+              value: /app/outputs
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "from src.models.state import WorkflowState; print('ok')"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "from src.orchestrator.workflow import WorkflowOrchestrator; print('ready')"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: outputs
+              mountPath: /app/outputs
+
+      volumes:
+        - name: outputs
+          persistentVolumeClaim:
+            claimName: agentic-sdlc-outputs
+
+      imagePullSecrets:
+        - name: ghcr-credentials
