@@ -1,6 +1,7 @@
 """Base agent with retry, error handling, and approval gate support."""
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+
 from src.models.state import Task, TaskStatus, WorkflowState
 
 
@@ -31,4 +32,3 @@ class BaseAgent(ABC):
     @abstractmethod
     def execute(self, task: Task, state: WorkflowState) -> any:
         """Execute agent logic and return output."""
-        pass

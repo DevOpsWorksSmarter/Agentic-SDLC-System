@@ -1,9 +1,9 @@
 """Core state models for the Agentic SDLC System."""
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 
 class TaskStatus(Enum):
@@ -33,7 +33,7 @@ class RiskLevel(Enum):
 @dataclass
 class Ambiguity:
     question: str
-    resolution: Optional[str] = None
+    resolution: str | None = None
     resolved: bool = False
 
 
@@ -57,12 +57,12 @@ class Task:
     depends_on: list[str] = field(default_factory=list)
     status: TaskStatus = TaskStatus.PENDING
     output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     retry_count: int = 0
     max_retries: int = 2
     requires_approval: bool = False
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 @dataclass
@@ -87,19 +87,19 @@ class ValidationResult:
 class WorkflowState:
     """Central state object passed through the entire workflow."""
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    requirement: Optional[Requirement] = None
+    requirement: Requirement | None = None
     tasks: list[Task] = field(default_factory=list)
     artifacts: dict[str, Any] = field(default_factory=dict)
     risks: list[Risk] = field(default_factory=list)
-    validation: Optional[ValidationResult] = None
+    validation: ValidationResult | None = None
     execution_log: list[dict] = field(default_factory=list)
     current_phase: str = "init"
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
-    def get_task(self, task_id: str) -> Optional[Task]:
+    def get_task(self, task_id: str) -> Task | None:
         return next((t for t in self.tasks if t.id == task_id), None)
 
-    def get_task_by_name(self, name: str) -> Optional[Task]:
+    def get_task_by_name(self, name: str) -> Task | None:
         return next((t for t in self.tasks if t.name == name), None)
 
     def log(self, phase: str, message: str, level: str = "info"):

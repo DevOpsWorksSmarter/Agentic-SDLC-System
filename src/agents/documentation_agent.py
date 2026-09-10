@@ -4,6 +4,7 @@ Generates the final engineering summary, README, and operational runbook
 from all accumulated workflow artifacts.
 """
 import html
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 

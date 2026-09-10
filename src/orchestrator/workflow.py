@@ -7,8 +7,8 @@ Coordinates multi-agent execution with:
 - Cross-step state propagation
 """
 from src.agents.architecture_agent import ArchitectureAgent
-from src.agents.codebase_reasoning_agent import CodebaseReasoningAgent
 from src.agents.code_generation_agent import CodeGenerationAgent
+from src.agents.codebase_reasoning_agent import CodebaseReasoningAgent
 from src.agents.decomposition_agent import DecompositionAgent
 from src.agents.documentation_agent import DocumentationAgent
 from src.agents.requirement_agent import RequirementAgent

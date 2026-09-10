@@ -5,10 +5,9 @@ a structured engineering problem, and classifies scenario type.
 """
 import html
 import re
+
 from src.agents.base import BaseAgent
-from src.models.state import (
-    Ambiguity, Requirement, ScenarioType, Task, WorkflowState
-)
+from src.models.state import Ambiguity, Requirement, ScenarioType, Task, WorkflowState
 
 _BROWNFIELD_SIGNALS = {
     "refactor", "migrate", "fix", "bug", "enhance", "improve",

@@ -1,5 +1,6 @@
 """System-level tests for the Agentic SDLC orchestrator pipeline."""
 import pytest
+
 from src.models.state import Requirement, TaskStatus, WorkflowState
 from src.orchestrator.workflow import WorkflowOrchestrator
 
@@ -88,9 +89,9 @@ class TestOrchestrator:
 
     def test_failed_task_skips_dependents(self):
         """Inject a broken agent and verify dependents are skipped."""
-        from src.orchestrator.workflow import AGENT_REGISTRY
         from src.agents.base import BaseAgent
         from src.models.state import Task
+        from src.orchestrator.workflow import AGENT_REGISTRY
 
         class BrokenAgent(BaseAgent):
             name = "architecture_agent"
@@ -188,8 +189,10 @@ class TestOutputWriter:
         assert os.path.isdir(out_dir)
 
     def test_write_outputs_creates_summary(self, tmp_path):
+        import json
+        import os
+
         from src.tools.output_writer import write_outputs
-        import os, json
         state = run("Build a scalable URL shortener service with APIs, persistence, and analytics.")
         out_dir = write_outputs(state, base_dir=str(tmp_path))
         summary_path = os.path.join(out_dir, "workflow_summary.json")
@@ -200,6 +203,5 @@ class TestOutputWriter:
 
     def test_path_traversal_blocked(self, tmp_path):
         from src.tools.output_writer import _safe_join
-        import pytest
         with pytest.raises(ValueError, match="Path traversal blocked"):
             _safe_join(str(tmp_path), "../../etc/passwd")

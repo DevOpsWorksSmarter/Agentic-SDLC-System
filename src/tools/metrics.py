@@ -6,11 +6,10 @@ If prometheus_client IS installed it is used automatically.
 """
 import time
 from collections import defaultdict
-from typing import Dict
 
 # ── In-process registry ───────────────────────────────────────────────────────
-_counters: Dict[str, float] = defaultdict(float)
-_histograms: Dict[str, list] = defaultdict(list)
+_counters: dict[str, float] = defaultdict(float)
+_histograms: dict[str, list] = defaultdict(list)
 
 
 def inc(name: str, labels: dict = None, value: float = 1.0):

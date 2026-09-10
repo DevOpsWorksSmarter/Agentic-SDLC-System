@@ -4,6 +4,7 @@ Analyzes an existing codebase to identify impacted modules, APIs,
 data flows, and change surface for brownfield requirements.
 """
 import os
+
 from src.agents.base import BaseAgent
 from src.models.state import Task, WorkflowState
 
