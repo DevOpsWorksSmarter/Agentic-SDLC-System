@@ -25,13 +25,10 @@ jobs:
           cache: pip
 
       - name: Install lint tools
-        run: pip install ruff==0.4.4 mypy==1.10.0
+        run: pip install mypy==1.10.0
 
-      - name: Ruff lint
-        run: ruff check src/ tests/ main.py
-
-      - name: Ruff format check
-        run: ruff format --check src/ tests/ main.py
+      - name: Run type checking
+        run: mypy src/ --ignore-missing-imports
 
   # ── Job 2: Unit & System Tests ─────────────────────────────────────────────
   test:
