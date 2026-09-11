@@ -1,9 +1,9 @@
-
 name: CD
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows:
+      - CI
     types:
       - completed
     branches:
@@ -15,19 +15,23 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/agentic-sdlc
 
 jobs:
 
   # ============================================================
-  # STAGING
+  # STAGING DEPLOYMENT
   # ============================================================
 
   deploy-staging:
     name: Deploy to Ephemeral Staging
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+
     runs-on: ubuntu-latest
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: read
 
     steps:
 
@@ -35,6 +39,470 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set image information
+        id: image
+        shell: bash
+        run: |
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${HEAD_SHA:0:7}"
+
+          IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}/agentic-sdlc" | tr '[:upper:]' '[:lower:]')
+
+          IMAGE="${{ env.REGISTRY }}/${IMAGE_NAME}:sha-${SHORT_SHA}"
+
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+          echo "========================================"
+          echo "Deployment image:"
+          echo "${IMAGE}"
+          echo "========================================"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull exact CI image
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          echo "Pulling:"
+          echo "${IMAGE}"
+
+          docker pull "${IMAGE}"
+
+      - name: Create Kind staging cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: agentic-sdlc-staging
+          node_image: kindest/node:v1.29.2
+
+      - name: Load application image into Kind
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          kind load docker-image "${IMAGE}" \
+            --name agentic-sdlc-staging
+
+      - name: Create staging namespace
+        run: |
+          kubectl create namespace staging
+
+      - name: Deploy application to staging
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: agentic-sdlc
+            namespace: staging
+            labels:
+              app: agentic-sdlc
+              environment: staging
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: agentic-sdlc
+            template:
+              metadata:
+                labels:
+                  app: agentic-sdlc
+                  environment: staging
+              spec:
+                containers:
+                  - name: agentic-sdlc
+                    image: ${IMAGE}
+                    imagePullPolicy: Never
+                    ports:
+                      - containerPort: 8080
+                        protocol: TCP
+                    readinessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8080
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                      timeoutSeconds: 5
+                      failureThreshold: 12
+                    livenessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8080
+                      initialDelaySeconds: 20
+                      periodSeconds: 10
+                      timeoutSeconds: 5
+                      failureThreshold: 6
+                    resources:
+                      requests:
+                        cpu: "100m"
+                        memory: "128Mi"
+                      limits:
+                        cpu: "500m"
+                        memory: "512Mi"
+
+          ---
+
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: agentic-sdlc
+            namespace: staging
+          spec:
+            selector:
+              app: agentic-sdlc
+            ports:
+              - name: http
+                port: 8080
+                targetPort: 8080
+                protocol: TCP
+            type: ClusterIP
+          EOF
+
+      - name: Wait for staging rollout
+        run: |
+          kubectl rollout status deployment/agentic-sdlc \
+            -n staging \
+            --timeout=180s
+
+      - name: Show staging resources
+        if: always()
+        run: |
+          kubectl get pods -n staging -o wide || true
+          kubectl get svc -n staging || true
+          kubectl get deployment -n staging || true
+
+      - name: Show staging logs
+        if: always()
+        run: |
+          kubectl logs \
+            -n staging \
+            deployment/agentic-sdlc \
+            --tail=100 || true
+
+      - name: Port forward staging service
+        shell: bash
+        run: |
+          kubectl port-forward \
+            -n staging \
+            service/agentic-sdlc \
+            8080:8080 > /tmp/staging-port-forward.log 2>&1 &
+
+          echo $! > /tmp/staging-port-forward.pid
+
+          sleep 5
+
+      - name: Run staging health check
+        shell: bash
+        run: |
+          echo "Checking staging health endpoint..."
+
+          for i in {1..12}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8080/health; then
+
+              echo
+              echo "Staging health check passed."
+              exit 0
+            fi
+
+            echo "Health check attempt ${i}/12 failed."
+            sleep 5
+          done
+
+          echo "Staging health check failed."
+
+          cat /tmp/staging-port-forward.log || true
+
+          exit 1
+
+      - name: Cleanup staging port forward
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/staging-port-forward.pid ]; then
+            kill "$(cat /tmp/staging-port-forward.pid)" || true
+          fi
+
+      - name: Delete staging cluster
+        if: always()
+        run: |
+          kind delete cluster \
+            --name agentic-sdlc-staging || true
+
+
+  # ============================================================
+  # PRODUCTION DEPLOYMENT
+  # ============================================================
+
+  deploy-production:
+    name: Deploy to Ephemeral Production
+    needs: deploy-staging
+
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+
+      - name: Checkout exact CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set image information
+        id: image
+        shell: bash
+        run: |
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT_SHA="${HEAD_SHA:0:7}"
+
+          IMAGE_NAME=$(echo "${GITHUB_REPOSITORY}/agentic-sdlc" | tr '[:upper:]' '[:lower:]')
+
+          IMAGE="${{ env.REGISTRY }}/${IMAGE_NAME}:sha-${SHORT_SHA}"
+
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+          echo "========================================"
+          echo "Production image:"
+          echo "${IMAGE}"
+          echo "========================================"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull exact CI image
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          echo "Pulling:"
+          echo "${IMAGE}"
+
+          docker pull "${IMAGE}"
+
+      - name: Create Kind production cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: agentic-sdlc-production
+          node_image: kindest/node:v1.29.2
+
+      - name: Load application image into Kind
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          kind load docker-image "${IMAGE}" \
+            --name agentic-sdlc-production
+
+      - name: Create production namespace
+        run: |
+          kubectl create namespace production
+
+      - name: Deploy application to production
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: agentic-sdlc
+            namespace: production
+            labels:
+              app: agentic-sdlc
+              environment: production
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: agentic-sdlc
+            template:
+              metadata:
+                labels:
+                  app: agentic-sdlc
+                  environment: production
+              spec:
+                containers:
+                  - name: agentic-sdlc
+                    image: ${IMAGE}
+                    imagePullPolicy: Never
+                    ports:
+                      - containerPort: 8080
+                        protocol: TCP
+                    readinessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8080
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                      timeoutSeconds: 5
+                      failureThreshold: 12
+                    livenessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8080
+                      initialDelaySeconds: 20
+                      periodSeconds: 10
+                      timeoutSeconds: 5
+                      failureThreshold: 6
+                    resources:
+                      requests:
+                        cpu: "100m"
+                        memory: "128Mi"
+                      limits:
+                        cpu: "500m"
+                        memory: "512Mi"
+
+          ---
+
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: agentic-sdlc
+            namespace: production
+          spec:
+            selector:
+              app: agentic-sdlc
+            ports:
+              - name: http
+                port: 8080
+                targetPort: 8080
+                protocol: TCP
+            type: ClusterIP
+          EOF
+
+      - name: Wait for production rollout
+        run: |
+          kubectl rollout status deployment/agentic-sdlc \
+            -n production \
+            --timeout=180s
+
+      - name: Show production resources
+        if: always()
+        run: |
+          kubectl get pods -n production -o wide || true
+          kubectl get svc -n production || true
+          kubectl get deployment -n production || true
+
+      - name: Show production logs
+        if: always()
+        run: |
+          kubectl logs \
+            -n production \
+            deployment/agentic-sdlc \
+            --tail=100 || true
+
+      - name: Port forward production service
+        shell: bash
+        run: |
+          kubectl port-forward \
+            -n production \
+            service/agentic-sdlc \
+            8080:8080 > /tmp/production-port-forward.log 2>&1 &
+
+          echo $! > /tmp/production-port-forward.pid
+
+          sleep 5
+
+      - name: Run production health check
+        shell: bash
+        run: |
+          echo "Checking production health endpoint..."
+
+          for i in {1..12}; do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8080/health; then
+
+              echo
+              echo "Production health check passed."
+              exit 0
+            fi
+
+            echo "Health check attempt ${i}/12 failed."
+            sleep 5
+          done
+
+          echo "Production health check failed."
+
+          cat /tmp/production-port-forward.log || true
+
+          exit 1
+
+      - name: Create deployment summary
+        if: success()
+        shell: bash
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## 🚀 Agentic SDLC Deployment Successful
+
+          ### Deployment Information
+
+          | Environment | Status |
+          |---|---|
+          | Staging | ✅ Passed |
+          | Production | ✅ Passed |
+
+          ### Image
+
+          \`${{ steps.image.outputs.image }}\`
+
+          ### Commit
+
+          \`${{ steps.image.outputs.head_sha }}\`
+
+          ### Health Checks
+
+          - Staging: `/health` ✅
+          - Production: `/health` ✅
+
+          ### Deployment Model
+
+          - Kubernetes: Kind
+          - Staging cluster: ephemeral
+          - Production cluster: ephemeral
+          - External kubeconfig: Not required
+          - External infrastructure: Not required
+
+          EOF
+
+      - name: Cleanup production port forward
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/production-port-forward.pid ]; then
+            kill "$(cat /tmp/production-port-forward.pid)" || true
+          fi
+
+      - name: Delete production cluster
+        if: always()
+        run: |
+          kind delete cluster \
+            --name agentic-sdlc-production || true          ref: ${{ github.event.workflow_run.head_sha }}
 
       # ----------------------------------------------------------
       # Determine exact image produced by CI
