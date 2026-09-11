@@ -188,10 +188,28 @@ def run_workflow(
 def main():
     args = parse_args()
 
+    # HTTP server mode for Docker/Kubernetes.
+    # This mode must remain non-interactive.
     if args.serve:
         start_http_server(args.port)
 
+        _emit(
+            "info",
+            "HTTP server running in serve mode",
+            port=args.port,
+        )
+
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            _emit("info", "HTTP server stopped")
+
+        return
+
+    # CLI / workflow execution mode.
     requirement_text = get_requirement(args)
+
     if not requirement_text:
         _emit("error", "Requirement cannot be empty")
         sys.exit(1)
@@ -208,14 +226,6 @@ def main():
         sys.exit(1)
 
     print_summary(state, output_dir)
-
-    if args.serve:
-        _emit("info", "HTTP server still running. Press Ctrl+C to stop.")
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            pass
 
 
 if __name__ == "__main__":
