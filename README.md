@@ -35,6 +35,9 @@ A working prototype of a multi-agent system that transforms a software requireme
 │    ├─► DocumentationAgent                                       │
 │    └─► CodebaseReasoningAgent (brownfield only)                 │
 │                                                                 │
+│  Quality Plane: AI Reasoning → Security → SRE → Engineering    │
+│                 Review → Deterministic Release Gate            │
+│                                                                 │
 │  Human-in-the-Loop Gates: approval_callback or interactive CLI  │
 │  Error Recovery: retry (max 2) → skip dependents on failure     │
 └────────────────────────────┬────────────────────────────────────┘
@@ -205,7 +208,7 @@ outputs/run_{id}/
 
 | Limitation | Trade-off |
 |------------|-----------|
-| No LLM integration — agents use deterministic rule-based logic | Fully reproducible and testable without API keys or network; swap agent `execute()` for LLM calls to add intelligence |
+| Optional LLM integration | Set `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` for structured JSON reasoning; deterministic fallback keeps CI reproducible and offline |
 | Brownfield codebase analysis is keyword-based | Sufficient for prototype; replace with AST parsing or tree-sitter for production |
 | Analytics materialized view requires manual refresh | Add `pg_cron` or a scheduled Lambda for production |
 | No auth on generated API | Intentional MVP scope; add JWT middleware as next iteration |

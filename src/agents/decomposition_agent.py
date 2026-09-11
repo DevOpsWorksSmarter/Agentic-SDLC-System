@@ -48,10 +48,16 @@ class DecompositionAgent(BaseAgent):
     def _greenfield_tasks(self, req) -> list[dict]:
         tasks = [
             {
+                "name": "ai_reasoning",
+                "description": "Perform structured AI-assisted reasoning over intent, assumptions, acceptance criteria and risks",
+                "agent": "ai_reasoning_agent",
+                "depends_on": [],
+            },
+            {
                 "name": "architecture_design",
                 "description": "Design system architecture: components, data flow, API surface, infra topology",
                 "agent": "architecture_agent",
-                "depends_on": [],
+                "depends_on": ["ai_reasoning"],
                 "requires_approval": True,
             },
             {
@@ -88,6 +94,17 @@ class DecompositionAgent(BaseAgent):
             },
         ]
 
+        # Independent quality reviews run after validation and before release documentation.
+        tasks.extend([
+            {"name":"security_review","description":"Review generated artifacts for application, supply-chain and execution security","agent":"security_agent","depends_on":["validation"],"requires_approval":True},
+            {"name":"sre_review","description":"Review SLOs, capacity, resilience, observability and operational readiness","agent":"sre_agent","depends_on":["validation"],"requires_approval":True},
+            {"name":"engineering_review","description":"Principal-engineer quality gate across requirements, architecture, code, tests and operations","agent":"engineering_review_agent","depends_on":["validation","security_review","sre_review"],"requires_approval":True},
+            {"name":"release_gate","description":"Deterministic release gate verifies complete evidence chain before release","agent":"release_gate_agent","depends_on":["engineering_review"]},
+        ])
+        for t in tasks:
+            if t["name"] == "documentation":
+                t["depends_on"] = ["release_gate"]
+
         # Add analytics tasks if requirement mentions analytics
         if "analytic" in req.raw.lower():
             tasks.insert(
@@ -109,10 +126,16 @@ class DecompositionAgent(BaseAgent):
     def _brownfield_tasks(self) -> list[dict]:
         return [
             {
+                "name": "ai_reasoning",
+                "description": "Reason over the requested change, assumptions, acceptance criteria and risks",
+                "agent": "ai_reasoning_agent",
+                "depends_on": [],
+            },
+            {
                 "name": "codebase_analysis",
                 "description": "Analyze existing codebase: impacted modules, APIs, data flows",
                 "agent": "codebase_reasoning_agent",
-                "depends_on": [],
+                "depends_on": ["ai_reasoning"],
                 "requires_approval": True,
             },
             {
@@ -141,10 +164,9 @@ class DecompositionAgent(BaseAgent):
                 "depends_on": ["test_generation"],
                 "requires_approval": True,
             },
-            {
-                "name": "documentation",
-                "description": "Generate change summary, migration guide, and updated docs",
-                "agent": "documentation_agent",
-                "depends_on": ["validation"],
-            },
+            {"name":"security_review","description":"Review change for security and supply-chain risks","agent":"security_agent","depends_on":["validation"],"requires_approval":True},
+            {"name":"sre_review","description":"Review reliability, SLOs, observability and rollback readiness","agent":"sre_agent","depends_on":["validation"],"requires_approval":True},
+            {"name":"engineering_review","description":"Final engineering quality gate","agent":"engineering_review_agent","depends_on":["validation","security_review","sre_review"],"requires_approval":True},
+            {"name":"release_gate","description":"Deterministic release evidence gate","agent":"release_gate_agent","depends_on":["engineering_review"]},
+            {"name":"documentation","description":"Generate change summary, migration guide, and updated docs","agent":"documentation_agent","depends_on":["engineering_review"]},
         ]

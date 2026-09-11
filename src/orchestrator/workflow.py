@@ -16,6 +16,12 @@ from src.agents.requirement_agent import RequirementAgent
 from src.agents.schema_agent import SchemaAgent
 from src.agents.test_generation_agent import TestGenerationAgent
 from src.agents.validation_agent import ValidationAgent
+from src.agents.ai_reasoning_agent import AIReasoningAgent
+from src.agents.sre_agent import SREAgent
+from src.agents.security_agent import SecurityAgent
+from src.agents.engineering_review_agent import EngineeringReviewAgent
+from src.agents.repair_agent import RepairAgent
+from src.agents.release_gate_agent import ReleaseGateAgent
 from src.models.state import Task, TaskStatus, WorkflowState
 from src.tools.metrics import Timer, inc
 
@@ -29,6 +35,12 @@ AGENT_REGISTRY = {
     "validation_agent": ValidationAgent(),
     "codebase_reasoning_agent": CodebaseReasoningAgent(),
     "documentation_agent": DocumentationAgent(),
+    "ai_reasoning_agent": AIReasoningAgent(),
+    "sre_agent": SREAgent(),
+    "security_agent": SecurityAgent(),
+    "engineering_review_agent": EngineeringReviewAgent(),
+    "repair_agent": RepairAgent(),
+    "release_gate_agent": ReleaseGateAgent(),
 }
 
 _SEED_TASKS = ("understand_requirement", "decompose")
