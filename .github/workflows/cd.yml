@@ -37,25 +37,52 @@ jobs:
         with:
           version: v1.29.0
 
-      # KUBE_CONFIG_STAGING must contain the raw kubeconfig YAML.
       - name: Configure kubeconfig
         env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+          KUBE_CONFIG_SECRET: ${{ secrets.KUBE_CONFIG_STAGING }}
         run: |
           set -euo pipefail
 
           mkdir -p "$HOME/.kube"
 
-          if [ -z "$KUBE_CONFIG" ]; then
-            echo "ERROR: KUBE_CONFIG_STAGING secret is empty or not configured."
+          if [ -z "$KUBE_CONFIG_SECRET" ]; then
+            echo "ERROR: KUBE_CONFIG_STAGING secret is empty."
             exit 1
           fi
 
-          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          echo "Preparing kubeconfig..."
+
+          # Remove accidental surrounding quotes if the secret was stored
+          # as a quoted JSON/YAML string.
+          CLEAN_CONFIG="$KUBE_CONFIG_SECRET"
+
+          if [[ "$CLEAN_CONFIG" == \"*\" && "$CLEAN_CONFIG" == *\" ]]; then
+            CLEAN_CONFIG="${CLEAN_CONFIG:1:${#CLEAN_CONFIG}-2}"
+          fi
+
+          # Convert literal \n sequences into real newlines.
+          CLEAN_CONFIG="$(printf '%s' "$CLEAN_CONFIG" | sed 's/\\n/\n/g')"
+
+          # First determine whether the secret is Base64 encoded.
+          if printf '%s' "$CLEAN_CONFIG" | base64 --decode >/tmp/kubeconfig.decoded 2>/dev/null && \
+             grep -qE '^[[:space:]]*(apiVersion|kind|clusters|contexts|users|current-context):' /tmp/kubeconfig.decoded; then
+
+            cp /tmp/kubeconfig.decoded "$HOME/.kube/config"
+            echo "Detected Base64-encoded kubeconfig."
+
+          else
+            printf '%s\n' "$CLEAN_CONFIG" > "$HOME/.kube/config"
+            echo "Detected raw kubeconfig."
+          fi
+
           chmod 600 "$HOME/.kube/config"
 
           echo "Validating kubeconfig..."
+
+          kubectl config view --minify >/dev/null
           kubectl config current-context
+
+          echo "Kubeconfig validation successful."
 
       - name: Set image tag
         id: tag
@@ -66,7 +93,7 @@ jobs:
 
       - name: Show deployment image
         run: |
-          echo "Deploying image:"
+          echo "Image:"
           echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
 
       - name: Deploy to staging
@@ -89,7 +116,10 @@ jobs:
 
           echo "Checking staging health..."
 
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
             --retry 5 \
             --retry-delay 5 \
             "$STAGING_URL/health" | grep '"status":"ok"'
@@ -137,25 +167,48 @@ jobs:
         with:
           version: v1.29.0
 
-      # KUBE_CONFIG_PRODUCTION must contain the raw kubeconfig YAML.
       - name: Configure kubeconfig
         env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+          KUBE_CONFIG_SECRET: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
         run: |
           set -euo pipefail
 
           mkdir -p "$HOME/.kube"
 
-          if [ -z "$KUBE_CONFIG" ]; then
-            echo "ERROR: KUBE_CONFIG_PRODUCTION secret is empty or not configured."
+          if [ -z "$KUBE_CONFIG_SECRET" ]; then
+            echo "ERROR: KUBE_CONFIG_PRODUCTION secret is empty."
             exit 1
           fi
 
-          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          echo "Preparing kubeconfig..."
+
+          CLEAN_CONFIG="$KUBE_CONFIG_SECRET"
+
+          if [[ "$CLEAN_CONFIG" == \"*\" && "$CLEAN_CONFIG" == *\" ]]; then
+            CLEAN_CONFIG="${CLEAN_CONFIG:1:${#CLEAN_CONFIG}-2}"
+          fi
+
+          CLEAN_CONFIG="$(printf '%s' "$CLEAN_CONFIG" | sed 's/\\n/\n/g')"
+
+          if printf '%s' "$CLEAN_CONFIG" | base64 --decode >/tmp/kubeconfig.decoded 2>/dev/null && \
+             grep -qE '^[[:space:]]*(apiVersion|kind|clusters|contexts|users|current-context):' /tmp/kubeconfig.decoded; then
+
+            cp /tmp/kubeconfig.decoded "$HOME/.kube/config"
+            echo "Detected Base64-encoded kubeconfig."
+
+          else
+            printf '%s\n' "$CLEAN_CONFIG" > "$HOME/.kube/config"
+            echo "Detected raw kubeconfig."
+          fi
+
           chmod 600 "$HOME/.kube/config"
 
           echo "Validating kubeconfig..."
+
+          kubectl config view --minify >/dev/null
           kubectl config current-context
+
+          echo "Kubeconfig validation successful."
 
       - name: Set image tag
         id: tag
@@ -166,7 +219,7 @@ jobs:
 
       - name: Show deployment image
         run: |
-          echo "Deploying image:"
+          echo "Image:"
           echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
 
       - name: Rolling deploy to production
@@ -190,14 +243,17 @@ jobs:
           echo "Checking production health..."
 
           for i in 1 2 3 4 5; do
-            if curl --fail --silent --show-error \
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
               "$PROD_URL/health" | grep '"status":"ok"'; then
 
               echo "Production health check passed."
               exit 0
             fi
 
-            echo "Health check attempt $i failed. Retrying..."
+            echo "Health check attempt $i failed."
             sleep 10
           done
 
@@ -215,7 +271,6 @@ jobs:
 
       - name: Tag release
         env:
-          GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
