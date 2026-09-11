@@ -1,6 +1,6 @@
 """SRE review: SLOs, reliability, capacity, observability, resilience and operations."""
 from src.agents.base import BaseAgent
-from src.models.state import Risk, Task, WorkflowState
+from src.models.state import Task, WorkflowState
 from src.tools.ai_client import AIClient
 
 class SREAgent(BaseAgent):
