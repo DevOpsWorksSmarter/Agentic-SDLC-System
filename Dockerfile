@@ -46,7 +46,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 8080
 
-# Default: run the orchestrator in auto mode with the mandatory use case
-CMD ["python", "main.py", "--auto", \
-     "--requirement", "Build a scalable URL shortener service with APIs, persistence, and analytics.", \
-     "--output-dir", "/app/outputs"]
+# Start HTTP server for Kubernetes / container deployment
+CMD ["python", "main.py", "--serve"]
