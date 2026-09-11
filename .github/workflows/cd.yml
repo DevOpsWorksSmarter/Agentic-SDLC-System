@@ -16,25 +16,378 @@ env:
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # Deploy to Staging
+  # Create ephemeral Kubernetes environment
   # ───────────────────────────────────────────────────────────────────────────
   deploy-staging:
-    name: Deploy to Staging
+    name: Deploy to Ephemeral Staging
     runs-on: ubuntu-latest
 
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
-    environment:
-      name: staging
-      url: https://staging.agentic-sdlc.example.com
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Set image tag
+        id: tag
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "tag=sha-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create ephemeral Kubernetes cluster
+        uses: helm/kind-action@v1.10.0
         with:
+          cluster_name: agentic-sdlc
+          node_image: kindest/node:v1.29.2
+
+      - name: Verify Kubernetes cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create staging namespace
+        run: |
+          kubectl create namespace staging
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t agentic-sdlc:${{ steps.tag.outputs.tag }} \
+            .
+
+      - name: Load image into Kind
+        run: |
+          kind load docker-image \
+            agentic-sdlc:${{ steps.tag.outputs.tag }} \
+            --name agentic-sdlc
+
+      - name: Deploy application
+        run: |
+          cat <<'EOF' | kubectl apply -n staging -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: agentic-sdlc
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: agentic-sdlc
+            template:
+              metadata:
+                labels:
+                  app: agentic-sdlc
+              spec:
+                containers:
+                  - name: agentic-sdlc
+                    image: agentic-sdlc:${{ steps.tag.outputs.tag }}
+                    imagePullPolicy: Never
+                    ports:
+                      - containerPort: 8000
+                    readinessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8000
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+                    livenessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8000
+                      initialDelaySeconds: 10
+                      periodSeconds: 10
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: agentic-sdlc
+          spec:
+            selector:
+              app: agentic-sdlc
+            ports:
+              - port: 8000
+                targetPort: 8000
+          EOF
+
+      - name: Wait for deployment
+        run: |
+          kubectl rollout status \
+            deployment/agentic-sdlc \
+            -n staging \
+            --timeout=180s
+
+      - name: Verify pods
+        run: |
+          kubectl get pods -n staging
+          kubectl get service -n staging
+
+      - name: Run staging smoke test
+        run: |
+          set -euo pipefail
+
+          kubectl port-forward \
+            service/agentic-sdlc \
+            8000:8000 \
+            -n staging > /tmp/port-forward.log 2>&1 &
+
+          PORT_FORWARD_PID=$!
+
+          trap 'kill $PORT_FORWARD_PID 2>/dev/null || true' EXIT
+
+          echo "Waiting for application..."
+
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl \
+              --fail \
+              --silent \
+              http://127.0.0.1:8000/health; then
+
+              echo
+              echo "Staging smoke test passed."
+              exit 0
+            fi
+
+            sleep 3
+          done
+
+          echo "Staging smoke test failed."
+          cat /tmp/port-forward.log
+          kubectl describe pod -n staging
+          kubectl logs deployment/agentic-sdlc -n staging
+
+          exit 1
+
+      - name: Staging deployment summary
+        if: always()
+        run: |
+          echo "======================================"
+          echo "Ephemeral staging deployment complete"
+          echo "======================================"
+
+          kubectl get all -n staging || true
+
+      - name: Destroy ephemeral cluster
+        if: always()
+        run: |
+          kind delete cluster --name agentic-sdlc || true
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Production approval
+  # ───────────────────────────────────────────────────────────────────────────
+  approve-production:
+    name: Production Approval
+    runs-on: ubuntu-latest
+
+    needs: deploy-staging
+
+    environment:
+      name: production-approval
+
+    steps:
+      - name: Approval checkpoint
+        run: |
+          echo "Production deployment approved."
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Ephemeral Production Deployment
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Ephemeral Production
+    runs-on: ubuntu-latest
+
+    needs: approve-production
+
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "tag=sha-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Create ephemeral Kubernetes cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: agentic-sdlc-production
+          node_image: kindest/node:v1.29.2
+
+      - name: Verify Kubernetes cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create production namespace
+        run: |
+          kubectl create namespace production
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t agentic-sdlc:${{ steps.tag.outputs.tag }} \
+            .
+
+      - name: Load image into Kind
+        run: |
+          kind load docker-image \
+            agentic-sdlc:${{ steps.tag.outputs.tag }} \
+            --name agentic-sdlc-production
+
+      - name: Deploy application
+        run: |
+          cat <<'EOF' | kubectl apply -n production -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: agentic-sdlc
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: agentic-sdlc
+            template:
+              metadata:
+                labels:
+                  app: agentic-sdlc
+              spec:
+                containers:
+                  - name: agentic-sdlc
+                    image: agentic-sdlc:${{ steps.tag.outputs.tag }}
+                    imagePullPolicy: Never
+                    ports:
+                      - containerPort: 8000
+                    readinessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8000
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+                    livenessProbe:
+                      httpGet:
+                        path: /health
+                        port: 8000
+                      initialDelaySeconds: 10
+                      periodSeconds: 10
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: agentic-sdlc
+          spec:
+            selector:
+              app: agentic-sdlc
+            ports:
+              - port: 8000
+                targetPort: 8000
+          EOF
+
+      - name: Wait for production deployment
+        run: |
+          kubectl rollout status \
+            deployment/agentic-sdlc \
+            -n production \
+            --timeout=180s
+
+      - name: Verify production deployment
+        run: |
+          kubectl get pods -n production
+          kubectl get service -n production
+
+      - name: Production health check
+        run: |
+          set -euo pipefail
+
+          kubectl port-forward \
+            service/agentic-sdlc \
+            8000:8000 \
+            -n production > /tmp/port-forward.log 2>&1 &
+
+          PORT_FORWARD_PID=$!
+
+          trap 'kill $PORT_FORWARD_PID 2>/dev/null || true' EXIT
+
+          echo "Waiting for production application..."
+
+          HEALTHY=false
+
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl \
+              --fail \
+              --silent \
+              http://127.0.0.1:8000/health | grep '"status":"ok"'; then
+
+              HEALTHY=true
+              echo
+              echo "Production health check passed."
+              break
+            fi
+
+            echo "Health check attempt $i failed."
+            sleep 3
+          done
+
+          if [ "$HEALTHY" != "true" ]; then
+            echo "Production health check failed."
+            echo "Triggering Kubernetes rollback..."
+
+            kubectl rollout undo \
+              deployment/agentic-sdlc \
+              -n production || true
+
+            kubectl rollout status \
+              deployment/agentic-sdlc \
+              -n production \
+              --timeout=120s || true
+
+            cat /tmp/port-forward.log || true
+            kubectl describe pod -n production || true
+            kubectl logs deployment/agentic-sdlc -n production || true
+
+            exit 1
+          fi
+
+      - name: Production deployment summary
+        if: always()
+        run: |
+          echo "======================================"
+          echo "Ephemeral production deployment complete"
+          echo "======================================"
+
+          kubectl get all -n production || true
+
+      - name: Tag release
+        if: success()
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          TAG="release-$(date +%Y%m%d-%H%M%S)-sha-${SHORT_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          echo "Created release tag: $TAG"
+
+      - name: Destroy ephemeral cluster
+        if: always()
+        run: |
+          kind delete cluster --name agentic-sdlc-production || true        with:
           version: v1.29.0
 
       - name: Configure kubeconfig
