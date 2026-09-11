@@ -6,113 +6,227 @@ on:
     types: [completed]
     branches: [main]
 
+permissions:
+  contents: write
+  packages: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/agentic-sdlc
 
 jobs:
-  # ── Deploy to Staging ──────────────────────────────────────────────────────
+  # ───────────────────────────────────────────────────────────────────────────
+  # Deploy to Staging
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
     environment:
       name: staging
       url: https://staging.agentic-sdlc.example.com
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+        uses: azure/setup-kubectl@v4
         with:
           version: v1.29.0
 
-      - name: Configure kubeconfig (staging)
+      # KUBE_CONFIG_STAGING must contain the raw kubeconfig YAML.
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
+          set -euo pipefail
+
+          mkdir -p "$HOME/.kube"
+
+          if [ -z "$KUBE_CONFIG" ]; then
+            echo "ERROR: KUBE_CONFIG_STAGING secret is empty or not configured."
+            exit 1
+          fi
+
+          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+          echo "Validating kubeconfig..."
+          kubectl config current-context
 
       - name: Set image tag
         id: tag
-        run: echo "tag=sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-
-      - name: Deploy to staging namespace
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          echo "tag=sha-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Show deployment image
+        run: |
+          echo "Deploying image:"
+          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
+
+      - name: Deploy to staging
+        run: |
+          set -euo pipefail
+
           kubectl set image deployment/agentic-sdlc \
             agentic-sdlc=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
             -n staging
-          kubectl rollout status deployment/agentic-sdlc -n staging --timeout=120s
 
-      - name: Run smoke test against staging
+          kubectl rollout status deployment/agentic-sdlc \
+            -n staging \
+            --timeout=120s
+
+      - name: Run staging smoke test
         run: |
-          STAGING_URL="https://staging.agentic-sdlc.example.com"
-          # Health check
-          curl -sf "$STAGING_URL/health" | grep '"status":"ok"'
-          echo "Staging smoke test passed"
+          set -euo pipefail
 
-  # ── Approval Gate ──────────────────────────────────────────────────────────
+          STAGING_URL="https://staging.agentic-sdlc.example.com"
+
+          echo "Checking staging health..."
+
+          curl --fail --silent --show-error \
+            --retry 5 \
+            --retry-delay 5 \
+            "$STAGING_URL/health" | grep '"status":"ok"'
+
+          echo "Staging smoke test passed."
+
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Production Approval
+  # ───────────────────────────────────────────────────────────────────────────
   approve-production:
     name: Approve Production Deployment
     runs-on: ubuntu-latest
+
     needs: deploy-staging
+
     environment:
-      name: production-approval  # Requires manual approval in GitHub Environments
+      name: production-approval
 
     steps:
       - name: Approval checkpoint
-        run: echo "Production deployment approved by ${{ github.actor }}"
+        run: |
+          echo "Production deployment approved."
 
-  # ── Deploy to Production ───────────────────────────────────────────────────
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Deploy to Production
+  # ───────────────────────────────────────────────────────────────────────────
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
+
     needs: approve-production
+
     environment:
       name: production
       url: https://agentic-sdlc.example.com
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+        uses: azure/setup-kubectl@v4
         with:
           version: v1.29.0
 
-      - name: Configure kubeconfig (production)
+      # KUBE_CONFIG_PRODUCTION must contain the raw kubeconfig YAML.
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+          set -euo pipefail
+
+          mkdir -p "$HOME/.kube"
+
+          if [ -z "$KUBE_CONFIG" ]; then
+            echo "ERROR: KUBE_CONFIG_PRODUCTION secret is empty or not configured."
+            exit 1
+          fi
+
+          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+          echo "Validating kubeconfig..."
+          kubectl config current-context
 
       - name: Set image tag
         id: tag
-        run: echo "tag=sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "tag=sha-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Show deployment image
+        run: |
+          echo "Deploying image:"
+          echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
 
       - name: Rolling deploy to production
         run: |
+          set -euo pipefail
+
           kubectl set image deployment/agentic-sdlc \
             agentic-sdlc=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }} \
             -n production
-          kubectl rollout status deployment/agentic-sdlc -n production --timeout=300s
+
+          kubectl rollout status deployment/agentic-sdlc \
+            -n production \
+            --timeout=300s
 
       - name: Verify production health
         run: |
+          set -euo pipefail
+
           PROD_URL="https://agentic-sdlc.example.com"
-          for i in 1 2 3; do
-            if curl -sf "$PROD_URL/health" | grep '"status":"ok"'; then
-              echo "Production health check passed"
+
+          echo "Checking production health..."
+
+          for i in 1 2 3 4 5; do
+            if curl --fail --silent --show-error \
+              "$PROD_URL/health" | grep '"status":"ok"'; then
+
+              echo "Production health check passed."
               exit 0
             fi
+
+            echo "Health check attempt $i failed. Retrying..."
             sleep 10
           done
-          echo "Production health check failed — triggering rollback"
-          kubectl rollout undo deployment/agentic-sdlc -n production
+
+          echo "Production health check failed."
+          echo "Rolling back deployment..."
+
+          kubectl rollout undo deployment/agentic-sdlc \
+            -n production
+
+          kubectl rollout status deployment/agentic-sdlc \
+            -n production \
+            --timeout=300s || true
+
           exit 1
 
       - name: Tag release
-        run: |
-          git tag "release-$(date +%Y%m%d-%H%M%S)-${{ steps.tag.outputs.tag }}"
-          git push origin --tags
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          TAG="release-$(date +%Y%m%d-%H%M%S)-sha-${SHORT_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          echo "Created release tag: $TAG"
