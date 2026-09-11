@@ -1,5 +1,7 @@
 """Optional structured LLM adapter with deterministic offline fallback."""
-import json, os, urllib.request
+import json
+import os
+import urllib.request
 
 class AIClient:
     def __init__(self):
