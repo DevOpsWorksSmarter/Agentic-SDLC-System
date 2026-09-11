@@ -1,6 +1,7 @@
 """SRE review: SLOs, reliability, capacity, observability, resilience and operations."""
+
 from src.agents.base import BaseAgent
-from src.models.state import Task, WorkflowState
+from src.models.state import Risk, RiskLevel, Task, WorkflowState
 from src.tools.ai_client import AIClient
 
 
@@ -25,7 +26,10 @@ class SREAgent(BaseAgent):
                 "timeouts": True,
                 "retries_with_backoff": True,
                 "circuit_breaker": "recommended for external dependencies",
-                "graceful_degradation": ["Redis loss falls back to DB"],
+                "graceful_degradation": [
+                    "Redis loss falls back to DB",
+                    "analytics failure never blocks redirect",
+                ],
             },
             "observability": {
                 "metrics": [
@@ -37,6 +41,7 @@ class SREAgent(BaseAgent):
                     "queue lag",
                 ],
                 "logs": "structured JSON with correlation/workflow IDs",
+                "traces": "OpenTelemetry recommended",
             },
             "resilience_tests": [
                 "Redis unavailable",

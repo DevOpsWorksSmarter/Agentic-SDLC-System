@@ -95,12 +95,37 @@ class DecompositionAgent(BaseAgent):
         ]
 
         # Independent quality reviews run after validation and before release documentation.
-        tasks.extend([
-            {"name":"security_review","description":"Review generated artifacts for application, supply-chain and execution security","agent":"security_agent","depends_on":["validation"],"requires_approval":True},
-            {"name":"sre_review","description":"Review SLOs, capacity, resilience, observability and operational readiness","agent":"sre_agent","depends_on":["validation"],"requires_approval":True},
-            {"name":"engineering_review","description":"Principal-engineer quality gate across requirements, architecture, code, tests and operations","agent":"engineering_review_agent","depends_on":["validation","security_review","sre_review"],"requires_approval":True},
-            {"name":"release_gate","description":"Deterministic release gate verifies complete evidence chain before release","agent":"release_gate_agent","depends_on":["engineering_review"]},
-        ])
+        tasks.extend(
+            [
+                {
+                    "name": "security_review",
+                    "description": "Review generated artifacts for application, supply-chain and execution security",
+                    "agent": "security_agent",
+                    "depends_on": ["validation"],
+                    "requires_approval": True,
+                },
+                {
+                    "name": "sre_review",
+                    "description": "Review SLOs, capacity, resilience, observability and operational readiness",
+                    "agent": "sre_agent",
+                    "depends_on": ["validation"],
+                    "requires_approval": True,
+                },
+                {
+                    "name": "engineering_review",
+                    "description": "Principal-engineer quality gate across requirements, architecture, code, tests and operations",
+                    "agent": "engineering_review_agent",
+                    "depends_on": ["validation", "security_review", "sre_review"],
+                    "requires_approval": True,
+                },
+                {
+                    "name": "release_gate",
+                    "description": "Deterministic release gate verifies complete evidence chain before release",
+                    "agent": "release_gate_agent",
+                    "depends_on": ["engineering_review"],
+                },
+            ]
+        )
         for t in tasks:
             if t["name"] == "documentation":
                 t["depends_on"] = ["release_gate"]
@@ -164,9 +189,37 @@ class DecompositionAgent(BaseAgent):
                 "depends_on": ["test_generation"],
                 "requires_approval": True,
             },
-            {"name":"security_review","description":"Review change for security and supply-chain risks","agent":"security_agent","depends_on":["validation"],"requires_approval":True},
-            {"name":"sre_review","description":"Review reliability, SLOs, observability and rollback readiness","agent":"sre_agent","depends_on":["validation"],"requires_approval":True},
-            {"name":"engineering_review","description":"Final engineering quality gate","agent":"engineering_review_agent","depends_on":["validation","security_review","sre_review"],"requires_approval":True},
-            {"name":"release_gate","description":"Deterministic release evidence gate","agent":"release_gate_agent","depends_on":["engineering_review"]},
-            {"name":"documentation","description":"Generate change summary, migration guide, and updated docs","agent":"documentation_agent","depends_on":["engineering_review"]},
+            {
+                "name": "security_review",
+                "description": "Review change for security and supply-chain risks",
+                "agent": "security_agent",
+                "depends_on": ["validation"],
+                "requires_approval": True,
+            },
+            {
+                "name": "sre_review",
+                "description": "Review reliability, SLOs, observability and rollback readiness",
+                "agent": "sre_agent",
+                "depends_on": ["validation"],
+                "requires_approval": True,
+            },
+            {
+                "name": "engineering_review",
+                "description": "Final engineering quality gate",
+                "agent": "engineering_review_agent",
+                "depends_on": ["validation", "security_review", "sre_review"],
+                "requires_approval": True,
+            },
+            {
+                "name": "release_gate",
+                "description": "Deterministic release evidence gate",
+                "agent": "release_gate_agent",
+                "depends_on": ["engineering_review"],
+            },
+            {
+                "name": "documentation",
+                "description": "Generate change summary, migration guide, and updated docs",
+                "agent": "documentation_agent",
+                "depends_on": ["engineering_review"],
+            },
         ]
